@@ -12,7 +12,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, CalendarDays, Tag, Image } from "lucide-react";
+import { Plus, User, CalendarDays, Tag, MapPin } from "lucide-react";
 
 const CATEGORIES = [
   "Seguridad",
@@ -113,8 +113,8 @@ export default function FindingsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-lg font-semibold">Hallazgos</h2>
+      <div className="flex items-center justify-between gap-4">
+        <h2 className="text-base sm:text-lg font-semibold">Hallazgos</h2>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
             <Button data-testid="button-add-finding" className="gap-1.5">
@@ -122,7 +122,7 @@ export default function FindingsTab() {
               Agregar
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90dvh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nuevo Hallazgo</DialogTitle>
             </DialogHeader>
@@ -130,12 +130,12 @@ export default function FindingsTab() {
               <div className="space-y-2">
                 <Label>Gemba Walk</Label>
                 <Select value={selectedWalk} onValueChange={setSelectedWalk}>
-                  <SelectTrigger data-testid="select-walk">
+                  <SelectTrigger data-testid="select-walk" className="text-base">
                     <SelectValue placeholder="Seleccionar recorrido" />
                   </SelectTrigger>
                   <SelectContent>
                     {walks.map((w) => (
-                      <SelectItem key={w.id} value={String(w.id)}>
+                      <SelectItem key={w.id} value={String(w.id)} className="text-base py-3">
                         {w.date} - {w.area}
                       </SelectItem>
                     ))}
@@ -145,12 +145,12 @@ export default function FindingsTab() {
               <div className="space-y-2">
                 <Label>Categoria</Label>
                 <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger data-testid="select-category">
+                  <SelectTrigger data-testid="select-category" className="text-base">
                     <SelectValue placeholder="Seleccionar categoria" />
                   </SelectTrigger>
                   <SelectContent>
                     {CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c} className="text-base py-3">{c}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -163,18 +163,19 @@ export default function FindingsTab() {
                   placeholder="Describe brevemente el hallazgo"
                   rows={2}
                   maxLength={200}
+                  className="text-base"
                   data-testid="input-description"
                 />
               </div>
               <div className="space-y-2">
                 <Label>Responsable</Label>
                 <Select value={responsible} onValueChange={setResponsible}>
-                  <SelectTrigger data-testid="select-responsible">
+                  <SelectTrigger data-testid="select-responsible" className="text-base">
                     <SelectValue placeholder="Seleccionar responsable" />
                   </SelectTrigger>
                   <SelectContent>
                     {RESPONSIBLES.map((r) => (
-                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                      <SelectItem key={r} value={r} className="text-base py-3">{r}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -185,6 +186,7 @@ export default function FindingsTab() {
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
+                  className="text-base"
                   data-testid="input-due-date"
                 />
               </div>
@@ -193,12 +195,14 @@ export default function FindingsTab() {
                 <Input
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                  className="text-base"
                   data-testid="input-photo"
                 />
               </div>
               <Button
-                className="w-full"
+                className="w-full text-base"
                 disabled={!selectedWalk || !category || !description || !responsible || !dueDate || createMutation.isPending}
                 onClick={() => createMutation.mutate()}
                 data-testid="button-save-finding"
@@ -282,10 +286,10 @@ function FindingCard({
   });
 
   return (
-    <Card className="p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
-      <div className="flex items-start justify-between gap-2 flex-wrap">
-        <div className="space-y-1 flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+    <Card className="p-3 sm:p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-2 flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Badge variant={statusInfo.variant} className="text-xs">
               {statusInfo.label}
             </Badge>
@@ -299,7 +303,7 @@ function FindingCard({
               {finding.category}
             </Badge>
           </div>
-          <p className="text-sm mt-2" data-testid={`text-finding-desc-${finding.id}`}>
+          <p className="text-sm leading-relaxed" data-testid={`text-finding-desc-${finding.id}`}>
             {finding.description}
           </p>
         </div>
@@ -307,23 +311,23 @@ function FindingCard({
           <img
             src={finding.photoUrl}
             alt="Hallazgo"
-            className="w-16 h-16 object-cover rounded-md border"
+            className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-md border shrink-0"
             data-testid={`img-finding-${finding.id}`}
           />
         )}
       </div>
-      <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
         <span className="flex items-center gap-1">
-          <User className="h-3 w-3" />
+          <User className="h-3.5 w-3.5 shrink-0" />
           {finding.responsible}
         </span>
         <span className="flex items-center gap-1">
-          <CalendarDays className="h-3 w-3" />
+          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
           {finding.dueDate}
         </span>
         {walkArea && (
           <span className="flex items-center gap-1">
-            <Image className="h-3 w-3" />
+            <MapPin className="h-3.5 w-3.5 shrink-0" />
             {walkArea}
           </span>
         )}
@@ -334,58 +338,57 @@ function FindingCard({
         </p>
       )}
       {finding.status !== "closed" && (
-        <div className="flex items-center gap-2 pt-1 flex-wrap">
-          <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm" data-testid={`button-update-finding-${finding.id}`}>
-                Actualizar estatus
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Actualizar hallazgo</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Nuevo estatus</Label>
-                  <Select value={newStatus} onValueChange={setNewStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="open">Abierto</SelectItem>
-                      <SelectItem value="in_progress">En progreso</SelectItem>
-                      <SelectItem value="closed">Cerrado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {newStatus === "closed" && (
-                  <div className="space-y-2">
-                    <Label>Comentario (opcional)</Label>
-                    <Textarea
-                      value={closeComment}
-                      onChange={(e) => setCloseComment(e.target.value)}
-                      placeholder="Comentario de cierre"
-                      rows={2}
-                    />
-                  </div>
-                )}
-                <Button
-                  className="w-full"
-                  onClick={() =>
-                    updateMutation.mutate({
-                      status: newStatus,
-                      closeComment: newStatus === "closed" ? closeComment : undefined,
-                    })
-                  }
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? "Guardando..." : "Guardar"}
-                </Button>
+        <Dialog open={closeOpen} onOpenChange={setCloseOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" data-testid={`button-update-finding-${finding.id}`}>
+              Actualizar estatus
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm max-h-[90dvh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Actualizar hallazgo</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label>Nuevo estatus</Label>
+                <Select value={newStatus} onValueChange={setNewStatus}>
+                  <SelectTrigger className="text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open" className="text-base py-3">Abierto</SelectItem>
+                    <SelectItem value="in_progress" className="text-base py-3">En progreso</SelectItem>
+                    <SelectItem value="closed" className="text-base py-3">Cerrado</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+              {newStatus === "closed" && (
+                <div className="space-y-2">
+                  <Label>Comentario (opcional)</Label>
+                  <Textarea
+                    value={closeComment}
+                    onChange={(e) => setCloseComment(e.target.value)}
+                    placeholder="Comentario de cierre"
+                    rows={2}
+                    className="text-base"
+                  />
+                </div>
+              )}
+              <Button
+                className="w-full text-base"
+                onClick={() =>
+                  updateMutation.mutate({
+                    status: newStatus,
+                    closeComment: newStatus === "closed" ? closeComment : undefined,
+                  })
+                }
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       )}
     </Card>
   );

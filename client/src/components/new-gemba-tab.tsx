@@ -77,32 +77,33 @@ export default function NewGembaTab({ userId }: { userId: string }) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Nuevo Gemba Walk</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base sm:text-lg">Nuevo Gemba Walk</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="date">Fecha</Label>
+              <Label htmlFor="date" className="text-sm">Fecha</Label>
               <Input
                 id="date"
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                className="text-base"
                 data-testid="input-date"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="area">Area</Label>
+              <Label htmlFor="area" className="text-sm">Area</Label>
               <Select value={area} onValueChange={setArea}>
-                <SelectTrigger data-testid="select-area">
+                <SelectTrigger data-testid="select-area" className="text-base">
                   <SelectValue placeholder="Seleccionar area" />
                 </SelectTrigger>
                 <SelectContent>
                   {AREAS.map((a) => (
-                    <SelectItem key={a} value={a} data-testid={`option-area-${a}`}>
+                    <SelectItem key={a} value={a} className="text-base py-3" data-testid={`option-area-${a}`}>
                       {a}
                     </SelectItem>
                   ))}
@@ -111,6 +112,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
             </div>
           </div>
           <Button
+            className="w-full text-base"
             onClick={() => createMutation.mutate()}
             disabled={!date || !area || createMutation.isPending}
             data-testid="button-create-gemba"
@@ -136,15 +138,15 @@ export default function NewGembaTab({ userId }: { userId: string }) {
           </Card>
         ) : (
           walks.map((walk) => (
-            <Card key={walk.id} className="p-4 hover-elevate">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="flex items-center gap-4">
+            <Card key={walk.id} className="p-3 sm:p-4 hover-elevate">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-wrap min-w-0">
                   <div className="flex items-center gap-1.5 text-sm">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span data-testid={`text-walk-date-${walk.id}`}>{walk.date}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-sm">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <MapPin className="h-4 w-4 text-muted-foreground shrink-0" />
                     <span data-testid={`text-walk-area-${walk.id}`}>{walk.area}</span>
                   </div>
                 </div>
@@ -153,6 +155,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                   size="icon"
                   onClick={() => deleteMutation.mutate(walk.id)}
                   disabled={deleteMutation.isPending}
+                  className="shrink-0"
                   data-testid={`button-delete-walk-${walk.id}`}
                 >
                   <Trash2 className="h-4 w-4 text-muted-foreground" />

@@ -40,12 +40,12 @@ export default function FollowUpTab() {
   ).sort().reverse();
 
   const handleExportPdf = () => {
-    const params = filterMonth ? `?month=${filterMonth}` : "";
+    const params = filterMonth && filterMonth !== "all" ? `?month=${filterMonth}` : "";
     window.open(`/api/reports/pdf${params}`, "_blank");
   };
 
   const handleExportExcel = () => {
-    const params = filterMonth ? `?month=${filterMonth}` : "";
+    const params = filterMonth && filterMonth !== "all" ? `?month=${filterMonth}` : "";
     window.open(`/api/reports/excel${params}`, "_blank");
   };
 
@@ -62,54 +62,56 @@ export default function FollowUpTab() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-destructive/10">
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 rounded-md bg-destructive/10 shrink-0">
               <AlertCircle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <p className="text-2xl font-bold" data-testid="text-overdue-count">{overdue.length}</p>
+              <p className="text-xl sm:text-2xl font-bold" data-testid="text-overdue-count">{overdue.length}</p>
               <p className="text-xs text-muted-foreground">Vencidos</p>
             </div>
           </div>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-primary/10">
+        <Card className="p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 rounded-md bg-primary/10 shrink-0">
               <Clock className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-2xl font-bold" data-testid="text-pending-count">{pending.length}</p>
+              <p className="text-xl sm:text-2xl font-bold" data-testid="text-pending-count">{pending.length}</p>
               <p className="text-xs text-muted-foreground">Pendientes</p>
             </div>
           </div>
         </Card>
       </div>
 
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <h2 className="text-lg font-semibold">Reportes</h2>
-        <div className="flex items-center gap-2 flex-wrap">
+      <div className="space-y-3">
+        <h2 className="text-base sm:text-lg font-semibold">Reportes</h2>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <Select value={filterMonth} onValueChange={setFilterMonth}>
-            <SelectTrigger className="w-[160px]" data-testid="select-month-filter">
+            <SelectTrigger className="text-base sm:w-[180px]" data-testid="select-month-filter">
               <SelectValue placeholder="Todos los meses" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Todos los meses</SelectItem>
+              <SelectItem value="all" className="text-base py-3">Todos los meses</SelectItem>
               {months.map((m) => (
-                <SelectItem key={m} value={m}>{m}</SelectItem>
+                <SelectItem key={m} value={m} className="text-base py-3">{m}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" onClick={handleExportPdf} className="gap-1.5" data-testid="button-export-pdf">
-            <Download className="h-4 w-4" />
-            PDF
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleExportExcel} className="gap-1.5" data-testid="button-export-excel">
-            <FileSpreadsheet className="h-4 w-4" />
-            Excel
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={handleExportPdf} className="gap-1.5" data-testid="button-export-pdf">
+              <Download className="h-4 w-4" />
+              PDF
+            </Button>
+            <Button variant="outline" onClick={handleExportExcel} className="gap-1.5" data-testid="button-export-excel">
+              <FileSpreadsheet className="h-4 w-4" />
+              Excel
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -122,28 +124,28 @@ export default function FollowUpTab() {
         ) : (
           Array.from(byResponsible.entries()).map(([name, items]) => (
             <Card key={name}>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-2 px-3 sm:px-6 pt-3 sm:pt-6">
                 <CardTitle className="text-sm flex items-center gap-2">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  {name}
-                  <Badge variant="secondary" className="ml-auto">{items.length}</Badge>
+                  <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="truncate">{name}</span>
+                  <Badge variant="secondary" className="ml-auto shrink-0">{items.length}</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent className="space-y-1 px-3 sm:px-6 pb-3 sm:pb-6">
                 {items.map((f) => {
                   const isOverdue = new Date(f.dueDate) < now;
                   return (
                     <div
                       key={f.id}
-                      className="flex items-center justify-between gap-3 py-2 border-b last:border-0"
+                      className="flex items-start sm:items-center justify-between gap-2 py-2.5 border-b last:border-0"
                       data-testid={`followup-item-${f.id}`}
                     >
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{f.description}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <p className="text-sm leading-relaxed">{f.description}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="secondary" className="text-xs">{f.category}</Badge>
                           <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                            <CalendarDays className="h-3 w-3" />
+                            <CalendarDays className="h-3 w-3 shrink-0" />
                             {f.dueDate}
                           </span>
                         </div>
