@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
+import { setupAuth, isAuthenticated } from "./auth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -33,8 +33,7 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  await setupAuth(app);
-  registerAuthRoutes(app);
+  setupAuth(app);
 
   app.use("/uploads", (req, res, next) => {
     const filePath = path.join(uploadDir, path.basename(req.path));
@@ -43,7 +42,7 @@ export async function registerRoutes(
 
   app.get("/api/gemba-walks", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const walks = await storage.getGembaWalks(userId);
       res.json(walks);
     } catch (error) {
@@ -58,7 +57,7 @@ export async function registerRoutes(
       if (!date || !area) {
         return res.status(400).json({ message: "Fecha y area son requeridos" });
       }
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const walk = await storage.createGembaWalk({ date, area, createdBy: userId });
       res.json(walk);
     } catch (error) {
@@ -80,7 +79,7 @@ export async function registerRoutes(
 
   app.get("/api/findings", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const allFindings = await storage.getFindingsByUser(userId);
       res.json(allFindings);
     } catch (error) {
@@ -130,7 +129,7 @@ export async function registerRoutes(
   app.get("/api/reports/pdf", isAuthenticated, async (req: any, res) => {
     try {
       const month = req.query.month as string;
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const gembaId = req.query.gembaId as string;
       let findingsList;
       if (gembaId) {
@@ -201,7 +200,7 @@ export async function registerRoutes(
   app.get("/api/reports/excel", isAuthenticated, async (req: any, res) => {
     try {
       const month = req.query.month as string;
-      const userId = req.user.claims.sub;
+      const userId = req.session.userId;
       const gembaId = req.query.gembaId as string;
       let findingsList;
       if (gembaId) {

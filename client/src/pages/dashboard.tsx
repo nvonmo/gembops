@@ -1,38 +1,18 @@
 import { useAuth } from "@/hooks/use-auth";
-import { useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClipboardCheck, LogOut, Plus, ListChecks, AlertTriangle } from "lucide-react";
 import NewGembaTab from "@/components/new-gemba-tab";
 import FindingsTab from "@/components/findings-tab";
 import FollowUpTab from "@/components/follow-up-tab";
-import { Switch, Route } from "wouter";
 
 export default function Dashboard() {
-  const { user, isLoading, isAuthenticated } = useAuth();
-
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      window.location.href = "/api/login";
-    }
-  }, [isLoading, isAuthenticated]);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Cargando...</div>
-      </div>
-    );
-  }
+  const { user, logout } = useAuth();
 
   if (!user) return null;
 
-  const initials = [user.firstName, user.lastName]
-    .filter(Boolean)
-    .map((n) => n?.[0])
-    .join("")
-    .toUpperCase() || "U";
+  const initials = (user.firstName?.[0] || user.username[0] || "U").toUpperCase();
 
   return (
     <div className="min-h-[100dvh] bg-background flex flex-col">
@@ -44,16 +24,15 @@ export default function Dashboard() {
           </div>
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8">
-              <AvatarImage src={user.profileImageUrl || undefined} />
               <AvatarFallback className="text-xs">{initials}</AvatarFallback>
             </Avatar>
             <span className="text-sm hidden sm:inline" data-testid="text-username">
-              {user.firstName || user.email || "Usuario"}
+              {user.firstName || user.username}
             </span>
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => (window.location.href = "/api/logout")}
+              onClick={() => logout()}
               data-testid="button-logout"
             >
               <LogOut className="h-4 w-4" />
