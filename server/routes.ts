@@ -11,14 +11,18 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { addWeeks, addMonths, parseISO, format } from "date-fns";
+import { s3Storage } from "./s3-storage.js";
+import { isS3Configured } from "./s3.js";
 
+// Fallback to local storage if S3 is not configured
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+// Use S3 storage if configured, otherwise use local disk storage
 const upload = multer({
-  storage: multer.diskStorage({
+  storage: isS3Configured() ? s3Storage : multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, uploadDir),
     filename: (_req, file, cb) => {
       const ext = path.extname(file.originalname);
@@ -42,10 +46,17 @@ export async function registerRoutes(
   console.log("[Routes] Starting route registration...");
   setupAuth(app);
 
-  app.use("/uploads", (req, res, next) => {
-    const filePath = path.join(uploadDir, path.basename(req.path));
-    res.sendFile(filePath);
-  });
+  // Serve local uploads only if S3 is not configured
+  if (!isS3Configured()) {
+    app.use("/uploads", (req, res, next) => {
+      const filePath = path.join(uploadDir, path.basename(req.path));
+      if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+      } else {
+        res.status(404).json({ message: "File not found" });
+      }
+    });
+  }
 
   app.get("/api/gemba-walks", isAuthenticated, async (req: any, res) => {
     try {
@@ -809,7 +820,12 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Usuario responsable no encontrado" });
       }
 
-      const photoUrl = req.file ? `/uploads/${req.file.filename}` : null;
+      // Get URL from S3 if configured, otherwise use local path
+      const photoUrl = req.file 
+        ? (isS3Configured() && (req.file as any).location 
+            ? (req.file as any).location 
+            : `/uploads/${req.file.filename}`)
+        : null;
       const finding = await storage.createFinding({
         gembaWalkId: parseInt(gembaWalkId),
         area: area || null, // Specific area where finding was detected
@@ -878,7 +894,9 @@ export async function registerRoutes(
       
       // Close evidence photo (only when closing)
       if (req.file && status === "closed") {
-        updateData.closeEvidenceUrl = `/uploads/${req.file.filename}`;
+        updateData.closeEvidenceUrl = isS3Configured() && (req.file as any).location
+          ? (req.file as any).location
+          : `/uploads/${req.file.filename}`;
       }
       
       if (dueDate !== undefined) {
