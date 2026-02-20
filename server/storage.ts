@@ -1,10 +1,10 @@
 import {
-  gembaWalks, findings,
+  gembaWalks, gembaWalkAreas, gembaWalkParticipants, findings,
   type GembaWalk, type InsertGembaWalk,
   type Finding, type InsertFinding,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, gte, lt, inArray } from "drizzle-orm";
+import { eq, desc, and, gte, lt, inArray, or } from "drizzle-orm";
 
 export interface IStorage {
   createGembaWalk(walk: InsertGembaWalk): Promise<GembaWalk>;
@@ -21,9 +21,30 @@ export interface IStorage {
 }
 
 async function getUserWalkIds(userId: string): Promise<number[]> {
-  const walks = await db.select({ id: gembaWalks.id }).from(gembaWalks)
+  // Get walks where user is creator, leader, or participant (same logic as getGembaWalks)
+  const walksAsCreator = await db.select({ id: gembaWalks.id }).from(gembaWalks)
     .where(eq(gembaWalks.createdBy, userId));
-  return walks.map((w) => w.id);
+  
+  const walksAsLeader = await db.select({ id: gembaWalks.id }).from(gembaWalks)
+    .where(eq(gembaWalks.leaderId, userId));
+  
+  const participantWalkIds = await db
+    .select({ gembaWalkId: gembaWalkParticipants.gembaWalkId })
+    .from(gembaWalkParticipants)
+    .where(eq(gembaWalkParticipants.userId, userId));
+  
+  const walksAsParticipant = participantWalkIds.length > 0
+    ? await db.select({ id: gembaWalks.id }).from(gembaWalks)
+        .where(inArray(gembaWalks.id, participantWalkIds.map(p => p.gembaWalkId)))
+    : [];
+  
+  // Combine and deduplicate by ID
+  const allWalkIds = new Set<number>();
+  [...walksAsCreator, ...walksAsLeader, ...walksAsParticipant].forEach(walk => {
+    allWalkIds.add(walk.id);
+  });
+  
+  return Array.from(allWalkIds);
 }
 
 export class DatabaseStorage implements IStorage {
@@ -33,9 +54,35 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGembaWalks(userId: string): Promise<GembaWalk[]> {
-    return db.select().from(gembaWalks)
-      .where(eq(gembaWalks.createdBy, userId))
-      .orderBy(desc(gembaWalks.createdAt));
+    // Get walks where user is creator, leader, or participant
+    const walksAsCreator = await db.select().from(gembaWalks)
+      .where(eq(gembaWalks.createdBy, userId));
+    
+    const walksAsLeader = await db.select().from(gembaWalks)
+      .where(eq(gembaWalks.leaderId, userId));
+    
+    const participantWalkIds = await db
+      .select({ gembaWalkId: gembaWalkParticipants.gembaWalkId })
+      .from(gembaWalkParticipants)
+      .where(eq(gembaWalkParticipants.userId, userId));
+    
+    const walksAsParticipant = participantWalkIds.length > 0
+      ? await db.select().from(gembaWalks)
+          .where(inArray(gembaWalks.id, participantWalkIds.map(p => p.gembaWalkId)))
+      : [];
+    
+    // Combine and deduplicate by ID
+    const allWalkIds = new Set<number>();
+    const allWalks: GembaWalk[] = [];
+    
+    [...walksAsCreator, ...walksAsLeader, ...walksAsParticipant].forEach(walk => {
+      if (!allWalkIds.has(walk.id)) {
+        allWalkIds.add(walk.id);
+        allWalks.push(walk);
+      }
+    });
+    
+    return allWalks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async getGembaWalk(id: number): Promise<GembaWalk | undefined> {
@@ -45,6 +92,7 @@ export class DatabaseStorage implements IStorage {
 
   async deleteGembaWalk(id: number): Promise<void> {
     await db.delete(findings).where(eq(findings.gembaWalkId, id));
+    // Cascade delete will handle gembaWalkAreas and gembaWalkParticipants
     await db.delete(gembaWalks).where(eq(gembaWalks.id, id));
   }
 

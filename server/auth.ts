@@ -14,6 +14,13 @@ declare module "express-session" {
 }
 
 export function setupAuth(app: Express) {
+  const isProduction = process.env.NODE_ENV === "production";
+  const secret = process.env.SESSION_SECRET || (isProduction ? "" : "gemba-walk-secret-key");
+  if (isProduction && !process.env.SESSION_SECRET) {
+    console.error("[Auth] SESSION_SECRET is required in production. Set it in .env or environment.");
+    process.exit(1);
+  }
+
   const sessionTtl = 7 * 24 * 60 * 60 * 1000;
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
@@ -25,50 +32,22 @@ export function setupAuth(app: Express) {
 
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "gemba-walk-secret-key",
+      secret,
       store: sessionStore,
       resave: false,
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
-        secure: false,
+        secure: isProduction,
         maxAge: sessionTtl,
+        sameSite: "lax",
       },
     })
   );
 
+  // Registration is now admin-only, moved to routes.ts
   app.post("/api/auth/register", async (req, res) => {
-    try {
-      const parsed = registerSchema.safeParse(req.body);
-      if (!parsed.success) {
-        return res.status(400).json({ message: parsed.error.errors[0].message });
-      }
-
-      const { username, password, firstName, lastName } = parsed.data;
-
-      const [existing] = await db.select().from(users).where(eq(users.username, username));
-      if (existing) {
-        return res.status(400).json({ message: "Ese usuario ya existe" });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const [newUser] = await db
-        .insert(users)
-        .values({
-          username,
-          password: hashedPassword,
-          firstName: firstName || null,
-          lastName: lastName || null,
-        })
-        .returning();
-
-      req.session.userId = newUser.id;
-      const { password: _, ...safeUser } = newUser;
-      res.json(safeUser);
-    } catch (error) {
-      console.error("Error registering:", error);
-      res.status(500).json({ message: "Error al registrar" });
-    }
+    return res.status(403).json({ message: "El registro público está deshabilitado. Contacta a un administrador." });
   });
 
   app.post("/api/auth/login", async (req, res) => {
@@ -130,4 +109,21 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
     return res.status(401).json({ message: "No autenticado" });
   }
   next();
+};
+
+export const isAdmin: RequestHandler = async (req: any, res, next) => {
+  if (!req.session.userId) {
+    return res.status(401).json({ message: "No autenticado" });
+  }
+  try {
+    const [user] = await db.select().from(users).where(eq(users.id, req.session.userId));
+    console.log("[isAdmin] User check:", { userId: req.session.userId, userRole: user?.role, isAdmin: user?.role === "admin" });
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ message: "No tienes permisos de administrador" });
+    }
+    next();
+  } catch (error) {
+    console.error("Error checking admin:", error);
+    res.status(500).json({ message: "Error al verificar permisos" });
+  }
 };

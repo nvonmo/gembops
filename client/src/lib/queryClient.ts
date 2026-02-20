@@ -29,12 +29,21 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
+    const url = queryKey.join("/") as string;
+    const res = await fetch(url, {
       credentials: "include",
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
+    }
+
+    // Check if response is HTML (error page)
+    const contentType = res.headers.get("content-type");
+    if (contentType && !contentType.includes("application/json")) {
+      const text = await res.text();
+      console.error(`[QueryClient] Non-JSON response from ${url}:`, text.substring(0, 200));
+      throw new Error(`Expected JSON but received ${contentType}. Response: ${text.substring(0, 100)}`);
     }
 
     await throwIfResNotOk(res);

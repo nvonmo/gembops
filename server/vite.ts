@@ -29,9 +29,29 @@ export async function setupVite(server: Server, app: Express) {
     appType: "custom",
   });
 
+  // IMPORTANT: API routes must be registered BEFORE vite middlewares
+  // This ensures API routes are handled first and vite doesn't intercept them
+  
   app.use(vite.middlewares);
 
+  // Only serve HTML for non-API routes - this should never catch /api/* routes
   app.use("/{*path}", async (req, res, next) => {
+    // Skip API routes - they should be handled by registerRoutes
+    if (req.path.startsWith("/api/")) {
+      console.error("[Vite] CRITICAL ERROR: API route intercepted by Vite catch-all:", req.path);
+      console.error("[Vite] This should NEVER happen - API routes must be registered before Vite middleware");
+      // Don't call next() with error - instead return 404 JSON to prevent HTML response
+      if (!res.headersSent) {
+        res.setHeader("Content-Type", "application/json");
+        return res.status(404).json({ 
+          error: "API route not found",
+          path: req.path,
+          message: "This route was intercepted by Vite middleware. Check route registration order."
+        });
+      }
+      return;
+    }
+    
     const url = req.originalUrl;
 
     try {
