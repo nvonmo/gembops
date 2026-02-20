@@ -50,6 +50,54 @@ export function setupAuth(app: Express) {
     return res.status(403).json({ message: "El registro público está deshabilitado. Contacta a un administrador." });
   });
 
+  // Temporary endpoint to create first admin when DB is empty (only works if no users exist)
+  app.post("/api/auth/create-first-admin", async (req, res) => {
+    try {
+      // Check if any users exist
+      const allUsers = await db.select().from(users);
+      if (allUsers.length > 0) {
+        return res.status(403).json({ 
+          message: "Ya existen usuarios en el sistema. Usa el panel de administración para crear más usuarios." 
+        });
+      }
+
+      const { username, password, firstName } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Usuario y contraseña son requeridos" });
+      }
+
+      if (username.length < 3) {
+        return res.status(400).json({ message: "El usuario debe tener al menos 3 caracteres" });
+      }
+
+      if (password.length < 4) {
+        return res.status(400).json({ message: "La contraseña debe tener al menos 4 caracteres" });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+      const [newUser] = await db
+        .insert(users)
+        .values({
+          username,
+          password: hashedPassword,
+          firstName: firstName || "Administrador",
+          role: "admin",
+        })
+        .returning();
+
+      const { password: _, ...safeUser } = newUser;
+      console.log(`✅ Primer administrador creado: ${username}`);
+      res.json({ 
+        message: "Administrador creado exitosamente",
+        user: safeUser 
+      });
+    } catch (error) {
+      console.error("Error creating first admin:", error);
+      res.status(500).json({ message: "Error al crear administrador" });
+    }
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const parsed = loginSchema.safeParse(req.body);

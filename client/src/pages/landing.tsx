@@ -21,6 +21,8 @@ interface BeforeInstallPromptEvent extends Event {
 export default function Landing() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showFirstAdmin, setShowFirstAdmin] = useState(false);
+  const [firstAdminData, setFirstAdminData] = useState({ username: "", password: "", firstName: "" });
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installable, setInstallable] = useState(false);
   const { toast } = useToast();
@@ -73,6 +75,35 @@ export default function Landing() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     loginMutation.mutate();
+  };
+
+  const createFirstAdminMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/create-first-admin", firstAdminData);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast({ 
+        title: "Administrador creado", 
+        description: `Usuario "${firstAdminData.username}" creado exitosamente. Ahora puedes iniciar sesión.` 
+      });
+      setShowFirstAdmin(false);
+      setUsername(firstAdminData.username);
+      setPassword(firstAdminData.password);
+      setFirstAdminData({ username: "", password: "", firstName: "" });
+    },
+    onError: (error: Error) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Error al crear administrador", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleCreateFirstAdmin = (e: React.FormEvent) => {
+    e.preventDefault();
+    createFirstAdminMutation.mutate();
   };
 
   const isPending = loginMutation.isPending;
@@ -146,7 +177,85 @@ export default function Landing() {
             <p className="text-xs text-center text-muted-foreground mt-4">
               ¿Necesitas una cuenta? Contacta a un administrador.
             </p>
+            {!showFirstAdmin && (
+              <button
+                type="button"
+                onClick={() => setShowFirstAdmin(true)}
+                className="text-xs text-primary hover:underline w-full mt-2"
+              >
+                ¿Primera vez? Crear primer administrador
+              </button>
+            )}
           </Card>
+
+          {showFirstAdmin && (
+            <Card className="p-5 border-primary/50">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-semibold mb-1">Crear primer administrador</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Solo funciona si no hay usuarios en el sistema.
+                  </p>
+                </div>
+                <form onSubmit={handleCreateFirstAdmin} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Usuario</Label>
+                    <Input
+                      type="text"
+                      value={firstAdminData.username}
+                      onChange={(e) => setFirstAdminData({ ...firstAdminData, username: e.target.value })}
+                      placeholder="admin"
+                      className="text-base"
+                      required
+                      minLength={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Contraseña</Label>
+                    <Input
+                      type="password"
+                      value={firstAdminData.password}
+                      onChange={(e) => setFirstAdminData({ ...firstAdminData, password: e.target.value })}
+                      placeholder="Tu contraseña"
+                      className="text-base"
+                      required
+                      minLength={4}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Nombre (opcional)</Label>
+                    <Input
+                      type="text"
+                      value={firstAdminData.firstName}
+                      onChange={(e) => setFirstAdminData({ ...firstAdminData, firstName: e.target.value })}
+                      placeholder="Administrador"
+                      className="text-base"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setShowFirstAdmin(false);
+                        setFirstAdminData({ username: "", password: "", firstName: "" });
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="submit"
+                      className="flex-1"
+                      disabled={createFirstAdminMutation.isPending || !firstAdminData.username || !firstAdminData.password}
+                    >
+                      {createFirstAdminMutation.isPending ? "Creando..." : "Crear administrador"}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </Card>
+          )}
 
           {!isStandalone && (
             <Card className="p-4 space-y-3">
