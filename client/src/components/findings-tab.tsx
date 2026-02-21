@@ -542,7 +542,11 @@ export default function FindingsTab() {
                   accept="image/*,video/*"
                   capture
                   multiple
-                  onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))}
+                  onChange={(e) => {
+                    const newFiles = Array.from(e.target.files || []);
+                    setPhotoFiles((prev) => [...prev, ...newFiles].slice(0, 10));
+                    e.target.value = "";
+                  }}
                   className="text-base h-11 sm:h-10"
                   data-testid="input-photo"
                 />
