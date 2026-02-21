@@ -39,15 +39,17 @@ export async function uploadToS3(
     throw new Error("S3 is not configured. Set S3_BUCKET and S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY or S3_ENDPOINT");
   }
 
+  // Do not set ACL when bucket has "Object ownership: Bucket owner enforced" (ACLs disabled).
+  // Public read is handled by the bucket policy instead.
   const command = new PutObjectCommand({
     Bucket: S3_BUCKET,
     Key: key,
     Body: body,
     ContentType: contentType,
-    ACL: "public-read", // Make files publicly accessible
   });
 
   await s3Client.send(command);
+  console.log("[S3] Uploaded:", key);
 
   // Return public URL
   if (S3_PUBLIC_URL) {
