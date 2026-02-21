@@ -262,14 +262,17 @@ export default function FollowUpTab() {
                                   playsInline
                                 />
                               ) : (
-                                <img
-                                  src={f.photoUrl}
-                                  alt="Hallazgo"
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
-                                  className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => handleImageClick(f.photoUrl!)}
-                                />
+                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border shrink-0 overflow-hidden bg-muted">
+                                  <img
+                                    src={f.photoUrl}
+                                    alt="Hallazgo"
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => handleImageClick(f.photoUrl!)}
+                                  />
+                                </div>
                               );
                             })()
                           )}
@@ -303,14 +306,17 @@ export default function FollowUpTab() {
                                   playsInline
                                 />
                               ) : (
-                                <img
-                                  src={f.closeEvidenceUrl}
-                                  alt="Evidencia de cierre"
-                                  loading="lazy"
-                                  referrerPolicy="no-referrer"
-                                  className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
-                                  onClick={() => handleImageClick(f.closeEvidenceUrl!)}
-                                />
+                                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0">
+                                  <img
+                                    src={f.closeEvidenceUrl}
+                                    alt="Evidencia de cierre"
+                                    loading="lazy"
+                                    decoding="async"
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                    onClick={() => handleImageClick(f.closeEvidenceUrl!)}
+                                  />
+                                </div>
                               );
                             })()}
                           </div>
@@ -375,6 +381,7 @@ export default function FollowUpTab() {
                     src={selectedImageUrl}
                     alt="Imagen ampliada"
                     loading="eager"
+                    decoding="async"
                     className="max-w-full max-h-[70vh] object-contain rounded-md"
                   />
                 );

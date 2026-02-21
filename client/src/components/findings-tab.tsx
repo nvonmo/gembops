@@ -1118,15 +1118,18 @@ function FindingCard({
                     playsInline
                   />
             ) : (
-              <img
-                src={finding.photoUrl}
-                alt="Hallazgo"
-                loading="lazy"
-                referrerPolicy="no-referrer"
-                className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => handleImageClick(finding.photoUrl!)}
-                data-testid={`img-finding-${finding.id}`}
-              />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-md border shrink-0 overflow-hidden bg-muted">
+                <img
+                  src={finding.photoUrl}
+                  alt="Hallazgo"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleImageClick(finding.photoUrl!)}
+                  data-testid={`img-finding-${finding.id}`}
+                />
+              </div>
             );
           })()
         )}
@@ -1183,14 +1186,17 @@ function FindingCard({
                     playsInline
                   />
                 ) : (
-                  <img
-                    src={finding.closeEvidenceUrl}
-                    alt="Evidencia de cierre"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    className="w-full max-w-xs rounded-md border object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleImageClick(finding.closeEvidenceUrl!)}
-                  />
+                  <div className="w-full max-w-xs rounded-md border overflow-hidden bg-muted">
+                    <img
+                      src={finding.closeEvidenceUrl}
+                      alt="Evidencia de cierre"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="w-full h-auto object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleImageClick(finding.closeEvidenceUrl!)}
+                    />
+                  </div>
                 );
               })()}
             </div>
@@ -1400,6 +1406,7 @@ function FindingCard({
                         src={selectedImageUrl}
                         alt="Imagen ampliada"
                         loading="eager"
+                        decoding="async"
                         className="max-w-full max-h-[70vh] object-contain rounded-md"
                       />
                     );

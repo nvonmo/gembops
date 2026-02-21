@@ -46,6 +46,7 @@ export async function uploadToS3(
     Key: key,
     Body: body,
     ContentType: contentType,
+    CacheControl: "public, max-age=31536000", // 1 year – images rarely change
   });
 
   await s3Client.send(command);
