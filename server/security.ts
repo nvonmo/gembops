@@ -14,10 +14,20 @@ export function setupSecurity(app: Express) {
     app.set("trust proxy", 1);
   }
 
-  // Allow S3 images in CSP when S3_PUBLIC_URL is set (e.g. https://bucket.s3.region.amazonaws.com)
-  const s3PublicUrl = process.env.S3_PUBLIC_URL?.trim().replace(/\s+/g, "");
-  const s3Origin = s3PublicUrl ? s3PublicUrl.replace(/\/+$/, "").replace(/\/[^/]*$/, "") : null;
-  const s3ImgSrc = s3Origin ? [s3Origin] : [];
+  // S3 origin for img-src (must be exact origin; read at startup)
+  let s3ImgSrc: string[] = [];
+  try {
+    const raw = process.env.S3_PUBLIC_URL?.trim().replace(/\s+/g, "");
+    if (raw) {
+      const origin = new URL(raw).origin;
+      if (origin.startsWith("https://")) s3ImgSrc = [origin];
+    }
+    if (s3ImgSrc.length === 0 && process.env.S3_BUCKET && process.env.S3_REGION) {
+      const bucket = process.env.S3_BUCKET.trim();
+      const region = process.env.S3_REGION.trim().replace(/\s+/g, "");
+      if (bucket && region) s3ImgSrc = [`https://${bucket}.s3.${region}.amazonaws.com`];
+    }
+  } catch (_) {}
 
   // Security headers (XSS, clickjacking, MIME sniffing, etc.)
   app.use(
@@ -26,11 +36,11 @@ export function setupSecurity(app: Express) {
         ? {
             directives: {
               defaultSrc: ["'self'"],
-              scriptSrc: ["'self'"],
-              styleSrc: ["'self'", "'unsafe-inline'"],
+              scriptSrc: ["'self'", "https://static.cloudflareinsights.com"],
+              styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
               imgSrc: ["'self'", "data:", "blob:", ...s3ImgSrc],
               connectSrc: ["'self'"],
-              fontSrc: ["'self'"],
+              fontSrc: ["'self'", "https://fonts.gstatic.com"],
               frameAncestors: ["'self'"],
             },
           }
