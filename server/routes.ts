@@ -12,7 +12,7 @@ import path from "path";
 import fs from "fs";
 import { addWeeks, addMonths, parseISO, format } from "date-fns";
 import { s3Storage } from "./s3-storage.js";
-import { isS3Configured } from "./s3.js";
+import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl } from "./s3.js";
 
 // Fallback to local storage if S3 is not configured
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -747,9 +747,11 @@ export async function registerRoutes(
         }
       });
       
-      // Add responsible user info and areas to findings
+      // Add responsible user info and areas to findings; resolve S3 URLs for photos
       const findingsWithUsers = allFindings.map(f => ({
         ...f,
+        photoUrl: resolvePhotoUrl(f.photoUrl),
+        closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
         responsibleUser: userMap.get(f.responsibleId) || null,
         areas: getAllAreasForWalk(f.gembaWalkId), // Include all areas for frontend use
       }));
@@ -821,11 +823,16 @@ export async function registerRoutes(
       }
 
       // Get URL from S3 if configured, otherwise use local path
-      const photoUrl = req.file 
-        ? (isS3Configured() && (req.file as any).location 
-            ? (req.file as any).location 
-            : `/uploads/${req.file.filename}`)
-        : null;
+      let photoUrl: string | null = null;
+      if (req.file) {
+        const fileAny = req.file as any;
+        if (isS3Configured()) {
+          const raw = fileAny.location || (fileAny.key ? getPublicUrlForKey(fileAny.key) : null) || `/uploads/${req.file.filename}`;
+          photoUrl = resolvePhotoUrl(raw);
+        } else {
+          photoUrl = `/uploads/${req.file.filename}`;
+        }
+      }
       const finding = await storage.createFinding({
         gembaWalkId: parseInt(gembaWalkId),
         area: area || null, // Specific area where finding was detected
@@ -850,7 +857,11 @@ export async function registerRoutes(
         isActionCompleted: false,
       });
 
-      res.json(finding);
+      res.json({
+        ...finding,
+        photoUrl: resolvePhotoUrl(finding.photoUrl),
+        closeEvidenceUrl: resolvePhotoUrl(finding.closeEvidenceUrl),
+      });
     } catch (error) {
       console.error("Error creating finding:", error);
       res.status(500).json({ message: "Error al crear hallazgo" });
@@ -925,7 +936,11 @@ export async function registerRoutes(
       }
       
       const updatedFinding = await storage.updateFinding(id, updateData);
-      res.json(updatedFinding);
+      res.json({
+        ...updatedFinding,
+        photoUrl: resolvePhotoUrl(updatedFinding?.photoUrl ?? null),
+        closeEvidenceUrl: resolvePhotoUrl(updatedFinding?.closeEvidenceUrl ?? null),
+      });
     } catch (error) {
       console.error("Error updating finding:", error);
       res.status(500).json({ message: "Error al actualizar hallazgo" });

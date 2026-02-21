@@ -91,6 +91,32 @@ export async function deleteFromS3(key: string): Promise<void> {
 }
 
 /**
+ * Return the public URL for an S3 key (e.g. "uploads/123.jpg").
+ * Use when you have a relative path stored and need the full S3 URL for the client.
+ */
+export function getPublicUrlForKey(key: string): string {
+  if (!key) return key;
+  const k = key.startsWith("/") ? key.slice(1) : key;
+  if (S3_PUBLIC_URL) {
+    return S3_PUBLIC_URL.endsWith("/") ? `${S3_PUBLIC_URL}${k}` : `${S3_PUBLIC_URL}/${k}`;
+  }
+  const region = process.env.S3_REGION || "us-east-1";
+  return `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${k}`;
+}
+
+/**
+ * If S3 is configured and url is a relative /uploads/ path, return full S3 URL; else return url as-is.
+ */
+export function resolvePhotoUrl(url: string | null): string | null {
+  if (!url) return null;
+  if (!isS3Configured()) return url;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  const key = url.startsWith("/uploads/") ? url.slice(1) : url.startsWith("uploads/") ? url : null;
+  if (key) return getPublicUrlForKey(key);
+  return url;
+}
+
+/**
  * Extract S3 key from URL (for deletion)
  */
 export function extractS3KeyFromUrl(url: string): string | null {
