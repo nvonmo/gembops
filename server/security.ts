@@ -37,7 +37,9 @@ export function setupSecurity(app: Express) {
             directives: {
               defaultSrc: ["'self'"],
               scriptSrc: ["'self'", "https://static.cloudflareinsights.com"],
+              scriptSrcElem: ["'self'", "https://static.cloudflareinsights.com"],
               styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+              styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
               imgSrc: ["'self'", "data:", "blob:", ...s3ImgSrc],
               connectSrc: ["'self'"],
               fontSrc: ["'self'", "https://fonts.gstatic.com"],

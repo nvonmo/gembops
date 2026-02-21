@@ -13,46 +13,65 @@ async function ensureSchema() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   
   try {
-    console.log("[Ensure Schema] Checking if users table exists...");
+    console.log("[Ensure Schema] Checking database schema...");
     
-    const result = await pool.query(`
+    const usersResult = await pool.query(`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
         WHERE table_schema = 'public' 
         AND table_name = 'users'
       );
     `);
+    const usersTableExists = usersResult.rows[0].exists;
     
-    const usersTableExists = result.rows[0].exists;
-    
-    if (usersTableExists) {
-      console.log("[Ensure Schema] ✅ Database schema already exists");
-      await pool.end();
+    if (!usersTableExists) {
+      console.log("[Ensure Schema] ⚠️  Database schema not found. Running db:push...");
+      await runDbPush(pool);
       return;
     }
 
-    console.log("[Ensure Schema] ⚠️  Database schema not found. Running migrations...");
+    // Check if findings table has photo_urls column (added for multiple photos per finding)
+    const columnResult = await pool.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.columns 
+        WHERE table_schema = 'public' 
+        AND table_name = 'findings' 
+        AND column_name = 'photo_urls'
+      );
+    `);
+    const photoUrlsColumnExists = columnResult.rows[0].exists;
     
-    try {
-      // Run drizzle-kit push to create tables
-      execSync("npm run db:push", { 
-        stdio: "inherit", 
-        env: { ...process.env },
-        cwd: process.cwd()
-      });
-      console.log("[Ensure Schema] ✅ Migrations completed successfully");
-    } catch (error: any) {
-      console.error("[Ensure Schema] ❌ Failed to run migrations:", error.message);
-      // Don't exit - let the server start anyway, it will show a clearer error
-      console.error("[Ensure Schema] You may need to run 'npm run db:push' manually");
+    if (!photoUrlsColumnExists) {
+      console.log("[Ensure Schema] ⚠️  Column findings.photo_urls missing. Running db:push...");
+      await runDbPush(pool);
+      return;
     }
     
+    console.log("[Ensure Schema] ✅ Database schema is up to date");
     await pool.end();
   } catch (error: any) {
     console.error("[Ensure Schema] ❌ Error checking schema:", error.message);
     await pool.end();
-    // Don't exit - let the server start and show a clearer error
   }
 }
 
-ensureSchema();
+async function runDbPush(pool: pg.Pool) {
+  try {
+    execSync("npm run db:push", { 
+      stdio: "inherit", 
+      env: { ...process.env },
+      cwd: process.cwd()
+    });
+    console.log("[Ensure Schema] ✅ db:push completed successfully");
+  } catch (error: any) {
+    console.error("[Ensure Schema] ❌ db:push failed:", error.message);
+    console.error("[Ensure Schema] Run 'npm run db:push' manually against your DATABASE_URL");
+  } finally {
+    await pool.end();
+  }
+}
+
+ensureSchema().catch((err) => {
+  console.error("[Ensure Schema] Fatal:", err);
+  process.exit(1);
+});
