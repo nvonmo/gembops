@@ -13,10 +13,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff } from "lucide-react";
+import { Plus, User, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Categories are now loaded dynamically from the API
 
@@ -126,7 +127,7 @@ export default function FindingsTab() {
     };
   }
 
-  const { data: findingsData, isLoading, error: findingsError } = useQuery<FindingsResponse>({
+  const { data: findingsData, isLoading, error: findingsError, refetch: refetchFindings, isRefetching } = useQuery<FindingsResponse>({
     queryKey: [`/api/findings?${queryParams.toString()}`],
   });
 
@@ -835,17 +836,39 @@ export default function FindingsTab() {
       </Card>
 
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-4 animate-pulse">
-              <div className="h-4 bg-muted rounded w-2/3" />
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="p-4 sm:p-5">
+              <div className="flex gap-3">
+                <Skeleton className="w-14 h-14 sm:w-16 sm:h-16 rounded-md shrink-0" />
+                <div className="flex-1 min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <div className="flex gap-2 pt-1">
+                    <Skeleton className="h-3.5 w-16" />
+                    <Skeleton className="h-3.5 w-20" />
+                    <Skeleton className="h-3.5 w-14" />
+                  </div>
+                </div>
+              </div>
             </Card>
           ))}
         </div>
       ) : findingsError ? (
         <Card className="p-8 text-center">
-          <p className="text-destructive mb-2">Error al cargar hallazgos</p>
-          <p className="text-sm text-muted-foreground">{findingsError.message}</p>
+          <p className="text-destructive font-medium mb-2">Error al cargar hallazgos</p>
+          <p className="text-sm text-muted-foreground mb-4">{findingsError.message}</p>
+          <Button
+            variant="default"
+            onClick={() => refetchFindings()}
+            disabled={isRefetching}
+            className="gap-2"
+            data-testid="button-retry-findings"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+            {isRefetching ? "Reintentando..." : "Reintentar"}
+          </Button>
         </Card>
       ) : findings.length === 0 ? (
         <Card className="p-8 text-center text-muted-foreground">

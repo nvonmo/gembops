@@ -13,7 +13,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import type { Finding, GembaWalk } from "@shared/schema";
 import { useState } from "react";
-import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw } from "lucide-react";
 
 interface User {
   id: string;
@@ -59,7 +60,7 @@ export default function FollowUpTab() {
     };
   }
 
-  const { data: findingsData, isLoading } = useQuery<FindingsResponse>({
+  const { data: findingsData, isLoading, error: findingsError, refetch: refetchFindings, isRefetching } = useQuery<FindingsResponse>({
     queryKey: ["/api/findings"],
   });
 
@@ -155,14 +156,77 @@ export default function FollowUpTab() {
     },
   });
 
+  if (findingsError) {
+    return (
+      <div className="space-y-5">
+        <Card className="p-8 text-center">
+          <p className="text-destructive font-medium mb-2">Error al cargar el seguimiento</p>
+          <p className="text-sm text-muted-foreground mb-4">{findingsError.message}</p>
+          <Button
+            variant="default"
+            onClick={() => refetchFindings()}
+            disabled={isRefetching}
+            className="gap-2"
+            data-testid="button-retry-followup"
+          >
+            <RefreshCw className={`h-4 w-4 ${isRefetching ? "animate-spin" : ""}`} />
+            {isRefetching ? "Reintentando..." : "Reintentar"}
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <Card key={i} className="p-4 animate-pulse">
-            <div className="h-4 bg-muted rounded w-1/2" />
+      <div className="space-y-5">
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+              <div>
+                <Skeleton className="h-7 w-12 mb-1" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
           </Card>
-        ))}
+          <Card className="p-3 sm:p-4">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <Skeleton className="h-9 w-9 rounded-md shrink-0" />
+              <div>
+                <Skeleton className="h-7 w-12 mb-1" />
+                <Skeleton className="h-3 w-16" />
+              </div>
+            </div>
+          </Card>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-5 w-24" />
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Skeleton className="h-10 sm:w-[180px]" />
+            <div className="grid grid-cols-2 gap-2">
+              <Skeleton className="h-10" />
+              <Skeleton className="h-10" />
+            </div>
+          </div>
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-4 w-32" />
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-4">
+              <div className="flex items-center gap-2 pb-2 border-b">
+                <Skeleton className="h-4 w-4 rounded" />
+                <Skeleton className="h-4 flex-1 max-w-[120px]" />
+                <Skeleton className="h-5 w-6 rounded" />
+              </div>
+              <div className="space-y-2 pt-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+            </Card>
+          ))}
+        </div>
       </div>
     );
   }
