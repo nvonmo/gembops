@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,7 +56,8 @@ export default function FindingsTab() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
-  
+  const recognitionRef = useRef<any>(null);
+
   // Filters and search state
   const [filters, setFilters] = useState<FilterState>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -249,26 +250,42 @@ export default function FindingsTab() {
           setDescription((prev) => prev.replace(/\s*\[Grabando\.\.\.\]\s*$/, ""));
         };
         
+        recognitionRef.current = recognitionInstance;
         setRecognition(recognitionInstance);
-        
+
         // Cleanup on unmount
         return () => {
-          if (recognitionInstance && isRecording) {
-            recognitionInstance.stop();
+          if (recognitionInstance) {
+            try {
+              recognitionInstance.stop();
+            } catch (_) {}
           }
+          recognitionRef.current = null;
         };
       }
     }
   }, []);
+
+  const stopRecordingIfActive = () => {
+    const rec = recognitionRef.current;
+    if (rec) {
+      try {
+        rec.stop();
+      } catch (_) {}
+    }
+    setIsRecording(false);
+  };
 
   const toggleRecording = () => {
     if (!recognition) {
       toast({ title: "No disponible", description: "El reconocimiento de voz no está disponible en tu navegador", variant: "destructive" });
       return;
     }
-    
+
     if (isRecording) {
-      recognition.stop();
+      try {
+        recognition.stop();
+      } catch (_) {}
       setIsRecording(false);
     } else {
       try {
@@ -289,16 +306,13 @@ export default function FindingsTab() {
     : [];
 
   function resetForm() {
+    stopRecordingIfActive();
     setSelectedWalk("");
     setSelectedArea("");
     setCategory("");
     setDescription("");
     setResponsibleId("");
     setPhotoFile(null);
-    if (isRecording && recognition) {
-      recognition.stop();
-      setIsRecording(false);
-    }
   }
 
   const createMutation = useMutation({
@@ -356,7 +370,13 @@ export default function FindingsTab() {
         <h2 className="text-base sm:text-lg font-semibold">Hallazgos</h2>
         {walks.length > 0 && (
           <div className="flex items-center gap-2">
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog
+              open={dialogOpen}
+              onOpenChange={(open) => {
+                if (!open) stopRecordingIfActive();
+                setDialogOpen(open);
+              }}
+            >
             <DialogTrigger asChild>
               <Button data-testid="button-add-finding" className="gap-1.5 min-h-[44px] sm:min-h-[36px] text-sm sm:text-xs touch-manipulation">
                 <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
@@ -555,7 +575,10 @@ export default function FindingsTab() {
               <Button
                 className="w-full text-base min-h-[44px] sm:min-h-[36px] touch-manipulation"
                 disabled={!selectedWalk || !selectedArea || !category || !description || !responsibleId || createMutation.isPending}
-                onClick={() => createMutation.mutate()}
+                onClick={() => {
+                  stopRecordingIfActive();
+                  createMutation.mutate();
+                }}
                 data-testid="button-save-finding"
               >
                 {createMutation.isPending ? "Guardando..." : "Guardar Hallazgo"}
