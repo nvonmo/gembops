@@ -54,7 +54,7 @@ export default function FindingsTab() {
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [responsibleId, setResponsibleId] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
   const recognitionRef = useRef<any>(null);
@@ -313,7 +313,7 @@ export default function FindingsTab() {
     setCategory("");
     setDescription("");
     setResponsibleId("");
-    setPhotoFile(null);
+    setPhotoFiles([]);
   }
 
   const createMutation = useMutation({
@@ -327,9 +327,7 @@ export default function FindingsTab() {
       formData.append("description", description);
       formData.append("responsibleId", responsibleId);
       formData.append("status", "open");
-      if (photoFile) {
-        formData.append("photo", photoFile);
-      }
+      photoFiles.forEach((file) => formData.append("photos", file));
       const res = await fetch("/api/findings", {
         method: "POST",
         body: formData,
@@ -538,38 +536,52 @@ export default function FindingsTab() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Foto o Video (opcional)</Label>
-                  <Input
+                <Label>Fotos o videos (opcional, hasta 10)</Label>
+                <Input
                   type="file"
                   accept="image/*,video/*"
                   capture
-                  onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                  multiple
+                  onChange={(e) => setPhotoFiles(Array.from(e.target.files || []))}
                   className="text-base h-11 sm:h-10"
                   data-testid="input-photo"
                 />
                 <p className="text-xs text-muted-foreground">
-                  En dispositivos móviles puedes tomar una foto o grabar un video directamente desde la cámara al seleccionar archivo
+                  Puedes anexar varias fotos o videos. En móvil puedes tomar o grabar desde la cámara.
                 </p>
-                {photoFile && (
-                  <div className="mt-2">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Archivo seleccionado: {photoFile.name} ({(photoFile.size / 1024 / 1024).toFixed(2)} MB)
+                {photoFiles.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {photoFiles.length} archivo(s) seleccionado(s)
                     </p>
-                    {photoFile.type.startsWith("image/") ? (
-                      <img
-                        src={URL.createObjectURL(photoFile)}
-                        alt="Vista previa"
-                        className="w-full max-w-xs rounded-md border object-cover"
-                      />
-                    ) : photoFile.type.startsWith("video/") ? (
-                      <video
-                        src={URL.createObjectURL(photoFile)}
-                        controls
-                        className="w-full max-w-xs rounded-md border"
-                      >
-                        Tu navegador no soporta la reproducción de videos.
-                      </video>
-                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      {photoFiles.map((file, i) => (
+                        <div key={i} className="relative">
+                          {file.type.startsWith("image/") ? (
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt={`Vista previa ${i + 1}`}
+                              className="w-20 h-20 sm:w-24 sm:h-24 rounded-md border object-cover"
+                            />
+                          ) : file.type.startsWith("video/") ? (
+                            <video
+                              src={URL.createObjectURL(file)}
+                              className="w-20 h-20 sm:w-24 sm:h-24 rounded-md border object-cover"
+                              muted
+                              playsInline
+                            />
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => setPhotoFiles((prev) => prev.filter((_, j) => j !== i))}
+                            className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs"
+                            aria-label="Quitar"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1105,6 +1117,8 @@ function FindingCard({
     updateMutation.mutate({ dueDate });
   };
 
+  const mediaUrls: string[] = (finding as any).photoUrls?.length ? (finding as any).photoUrls : (finding.photoUrl ? [finding.photoUrl] : []);
+
   return (
     <Card className="p-3 sm:p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
       <div className="flex items-start justify-between gap-2">
@@ -1127,34 +1141,46 @@ function FindingCard({
             {finding.description}
           </p>
         </div>
-        {finding.photoUrl && (
-          (() => {
-            const isVideo = finding.photoUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || finding.photoUrl.includes("video");
-                return isVideo ? (
-                  <video
-                    src={finding.photoUrl}
-                    referrerPolicy="no-referrer"
-                    className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleImageClick(finding.photoUrl!)}
-                    data-testid={`video-finding-${finding.id}`}
-                    muted
-                    playsInline
-                  />
-            ) : (
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-md border shrink-0 overflow-hidden bg-muted">
-                <img
-                  src={finding.photoUrl}
-                  alt="Hallazgo"
-                  loading="lazy"
-                  decoding="async"
+        {mediaUrls.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap shrink-0">
+            {mediaUrls.slice(0, 4).map((url, idx) => {
+              const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
+              return isVideo ? (
+                <video
+                  key={idx}
+                  src={url}
                   referrerPolicy="no-referrer"
-                  className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => handleImageClick(finding.photoUrl!)}
-                  data-testid={`img-finding-${finding.id}`}
+                  className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => handleImageClick(url)}
+                  data-testid={`video-finding-${finding.id}-${idx}`}
+                  muted
+                  playsInline
                 />
-              </div>
-            );
-          })()
+              ) : (
+                <div key={idx} className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted">
+                  <img
+                    src={url}
+                    alt={`Hallazgo ${idx + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleImageClick(url)}
+                    data-testid={`img-finding-${finding.id}-${idx}`}
+                  />
+                </div>
+              );
+            })}
+            {mediaUrls.length > 4 && (
+              <button
+                type="button"
+                onClick={() => handleImageClick(mediaUrls[4])}
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground hover:bg-muted/80"
+              >
+                +{mediaUrls.length - 4}
+              </button>
+            )}
+          </div>
         )}
       </div>
       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">

@@ -44,7 +44,8 @@ export const findings = pgTable("findings", {
   responsibleId: varchar("responsible_id").notNull(), // Foreign key to users
   dueDate: date("due_date"), // Optional - will be set by the responsible user
   status: text("status").notNull().default("open"),
-  photoUrl: text("photo_url"), // Photo of the finding
+  photoUrl: text("photo_url"), // First photo (backward compatibility)
+  photoUrls: text("photo_urls"), // JSON array of photo/video URLs (multiple attachments)
   closeComment: text("close_comment"),
   closeEvidenceUrl: text("close_evidence_url"), // Photo evidence when closing
   createdAt: timestamp("created_at").defaultNow(),

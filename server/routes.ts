@@ -613,6 +613,7 @@ export async function registerRoutes(
           dueDate: findings.dueDate,
           status: findings.status,
           photoUrl: findings.photoUrl,
+          photoUrls: findings.photoUrls,
           closeComment: findings.closeComment,
           closeEvidenceUrl: findings.closeEvidenceUrl,
           createdAt: findings.createdAt,
@@ -748,13 +749,19 @@ export async function registerRoutes(
       });
       
       // Add responsible user info and areas to findings; resolve S3 URLs for photos
-      const findingsWithUsers = allFindings.map(f => ({
-        ...f,
-        photoUrl: resolvePhotoUrl(f.photoUrl),
-        closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
-        responsibleUser: userMap.get(f.responsibleId) || null,
-        areas: getAllAreasForWalk(f.gembaWalkId), // Include all areas for frontend use
-      }));
+      const findingsWithUsers = allFindings.map((f: any) => {
+        const photoUrlsRaw = f.photoUrls ? (typeof f.photoUrls === "string" ? JSON.parse(f.photoUrls) : f.photoUrls) : [];
+        const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : [];
+        const firstPhoto = photoUrlsResolved.length > 0 ? photoUrlsResolved[0] : resolvePhotoUrl(f.photoUrl);
+        return {
+          ...f,
+          photoUrl: firstPhoto,
+          photoUrls: photoUrlsResolved.length > 0 ? photoUrlsResolved : (f.photoUrl ? [resolvePhotoUrl(f.photoUrl)] : []),
+          closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
+          responsibleUser: userMap.get(f.responsibleId) || null,
+          areas: getAllAreasForWalk(f.gembaWalkId),
+        };
+      });
       
       // Calculate pagination metadata
       const total = findingsWithUsers.length;
@@ -794,7 +801,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/findings", isAuthenticated, upload.single("photo"), async (req: any, res) => {
+  app.post("/api/findings", isAuthenticated, upload.array("photos", 10), async (req: any, res) => {
     try {
       const { gembaWalkId, area, category, description, responsibleId, status } = req.body;
       const userId = req.session.userId;
@@ -822,26 +829,29 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Usuario responsable no encontrado" });
       }
 
-      // Get URL from S3 if configured, otherwise use local path
-      let photoUrl: string | null = null;
-      if (req.file) {
-        const fileAny = req.file as any;
+      // Build photo URLs from uploaded files (multiple photos/videos supported)
+      const files = (req.files || []) as Express.Multer.File[];
+      const photoUrls: string[] = [];
+      for (const file of files) {
+        const fileAny = file as any;
         if (isS3Configured()) {
-          const raw = fileAny.location || (fileAny.key ? getPublicUrlForKey(fileAny.key) : null) || `/uploads/${req.file.filename}`;
-          photoUrl = resolvePhotoUrl(raw);
+          const raw = fileAny.location || (fileAny.key ? getPublicUrlForKey(fileAny.key) : null) || `/uploads/${file.filename}`;
+          photoUrls.push(resolvePhotoUrl(raw));
         } else {
-          photoUrl = `/uploads/${req.file.filename}`;
+          photoUrls.push(`/uploads/${file.filename}`);
         }
       }
+      const photoUrl = photoUrls.length > 0 ? photoUrls[0] : null;
       const finding = await storage.createFinding({
         gembaWalkId: parseInt(gembaWalkId),
-        area: area || null, // Specific area where finding was detected
+        area: area || null,
         category,
         description,
         responsibleId,
-        dueDate: null, // Will be set by the responsible user
+        dueDate: null,
         status: status || "open",
         photoUrl,
+        photoUrls: photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
       });
 
       const walkArea = walk?.area || "desconocida";
@@ -857,9 +867,11 @@ export async function registerRoutes(
         isActionCompleted: false,
       });
 
+      const photoUrlsParsed = finding.photoUrls ? (typeof finding.photoUrls === "string" ? JSON.parse(finding.photoUrls) : finding.photoUrls) : [];
       res.json({
         ...finding,
         photoUrl: resolvePhotoUrl(finding.photoUrl),
+        photoUrls: Array.isArray(photoUrlsParsed) ? photoUrlsParsed.map((u: string) => resolvePhotoUrl(u)) : (finding.photoUrl ? [resolvePhotoUrl(finding.photoUrl)] : []),
         closeEvidenceUrl: resolvePhotoUrl(finding.closeEvidenceUrl),
       });
     } catch (error) {
@@ -936,9 +948,12 @@ export async function registerRoutes(
       }
       
       const updatedFinding = await storage.updateFinding(id, updateData);
+      const photoUrlsRaw = updatedFinding?.photoUrls ? (typeof updatedFinding.photoUrls === "string" ? JSON.parse(updatedFinding.photoUrls) : updatedFinding.photoUrls) : [];
+      const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : (updatedFinding?.photoUrl ? [resolvePhotoUrl(updatedFinding.photoUrl)] : []);
       res.json({
         ...updatedFinding,
         photoUrl: resolvePhotoUrl(updatedFinding?.photoUrl ?? null),
+        photoUrls: photoUrlsResolved,
         closeEvidenceUrl: resolvePhotoUrl(updatedFinding?.closeEvidenceUrl ?? null),
       });
     } catch (error) {
