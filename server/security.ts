@@ -14,6 +14,11 @@ export function setupSecurity(app: Express) {
     app.set("trust proxy", 1);
   }
 
+  // Allow S3 images in CSP when S3_PUBLIC_URL is set (e.g. https://bucket.s3.region.amazonaws.com)
+  const s3PublicUrl = process.env.S3_PUBLIC_URL?.trim().replace(/\s+/g, "");
+  const s3Origin = s3PublicUrl ? s3PublicUrl.replace(/\/+$/, "").replace(/\/[^/]*$/, "") : null;
+  const s3ImgSrc = s3Origin ? [s3Origin] : [];
+
   // Security headers (XSS, clickjacking, MIME sniffing, etc.)
   app.use(
     helmet({
@@ -23,7 +28,7 @@ export function setupSecurity(app: Express) {
               defaultSrc: ["'self'"],
               scriptSrc: ["'self'"],
               styleSrc: ["'self'", "'unsafe-inline'"],
-              imgSrc: ["'self'", "data:", "blob:"],
+              imgSrc: ["'self'", "data:", "blob:", ...s3ImgSrc],
               connectSrc: ["'self'"],
               fontSrc: ["'self'"],
               frameAncestors: ["'self'"],
