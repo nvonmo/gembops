@@ -1084,20 +1084,22 @@ function FindingCard({
         {finding.photoUrl && (
           (() => {
             const isVideo = finding.photoUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || finding.photoUrl.includes("video");
-            return isVideo ? (
-              <video
-                src={finding.photoUrl}
-                className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => handleImageClick(finding.photoUrl!)}
-                data-testid={`video-finding-${finding.id}`}
-                muted
-                playsInline
-              />
+                return isVideo ? (
+                  <video
+                    src={finding.photoUrl}
+                    referrerPolicy="no-referrer"
+                    className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleImageClick(finding.photoUrl!)}
+                    data-testid={`video-finding-${finding.id}`}
+                    muted
+                    playsInline
+                  />
             ) : (
               <img
                 src={finding.photoUrl}
                 alt="Hallazgo"
                 loading="lazy"
+                referrerPolicy="no-referrer"
                 className="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => handleImageClick(finding.photoUrl!)}
                 data-testid={`img-finding-${finding.id}`}
@@ -1151,6 +1153,7 @@ function FindingCard({
                 return isVideo ? (
                   <video
                     src={finding.closeEvidenceUrl}
+                    referrerPolicy="no-referrer"
                     className="w-full max-w-xs rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => handleImageClick(finding.closeEvidenceUrl!)}
                     muted
@@ -1161,6 +1164,7 @@ function FindingCard({
                     src={finding.closeEvidenceUrl}
                     alt="Evidencia de cierre"
                     loading="lazy"
+                    referrerPolicy="no-referrer"
                     className="w-full max-w-xs rounded-md border object-cover cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => handleImageClick(finding.closeEvidenceUrl!)}
                   />

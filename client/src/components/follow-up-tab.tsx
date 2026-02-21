@@ -255,6 +255,7 @@ export default function FollowUpTab() {
                               return isVideo ? (
                                 <video
                                   src={f.photoUrl}
+                                  referrerPolicy="no-referrer"
                                   className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() => handleImageClick(f.photoUrl!)}
                                   muted
@@ -265,6 +266,7 @@ export default function FollowUpTab() {
                                   src={f.photoUrl}
                                   alt="Hallazgo"
                                   loading="lazy"
+                                  referrerPolicy="no-referrer"
                                   className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() => handleImageClick(f.photoUrl!)}
                                 />
@@ -294,6 +296,7 @@ export default function FollowUpTab() {
                               return isVideo ? (
                                 <video
                                   src={f.closeEvidenceUrl}
+                                  referrerPolicy="no-referrer"
                                   className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() => handleImageClick(f.closeEvidenceUrl!)}
                                   muted
@@ -304,6 +307,7 @@ export default function FollowUpTab() {
                                   src={f.closeEvidenceUrl}
                                   alt="Evidencia de cierre"
                                   loading="lazy"
+                                  referrerPolicy="no-referrer"
                                   className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() => handleImageClick(f.closeEvidenceUrl!)}
                                 />
