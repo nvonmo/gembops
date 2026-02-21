@@ -14,36 +14,44 @@ export function setupSecurity(app: Express) {
     app.set("trust proxy", 1);
   }
 
-  // S3 origin for img-src (must be exact origin; read at startup)
-  let s3ImgSrc: string[] = [];
+  // S3 origin(s) for img-src
+  const s3Origins: string[] = [];
   try {
     const raw = process.env.S3_PUBLIC_URL?.trim().replace(/\s+/g, "");
     if (raw) {
       const origin = new URL(raw).origin;
-      if (origin.startsWith("https://")) s3ImgSrc = [origin];
+      if (origin.startsWith("https://")) s3Origins.push(origin);
     }
-    if (s3ImgSrc.length === 0 && process.env.S3_BUCKET && process.env.S3_REGION) {
+    if (s3Origins.length === 0 && process.env.S3_BUCKET && process.env.S3_REGION) {
       const bucket = process.env.S3_BUCKET.trim();
-      const region = process.env.S3_REGION.trim().replace(/\s+/g, "");
-      if (bucket && region) s3ImgSrc = [`https://${bucket}.s3.${region}.amazonaws.com`];
+      const region = (process.env.S3_REGION || "us-east-1").trim().replace(/\s+/g, "");
+      if (bucket) s3Origins.push(`https://${bucket}.s3.${region}.amazonaws.com`);
     }
-  } catch (_) {}
+    // Fallback for known bucket so images load even if env is wrong at startup
+    if (s3Origins.length === 0) s3Origins.push("https://gembops-atramat.s3.us-east-1.amazonaws.com");
+  } catch (_) {
+    s3Origins.push("https://gembops-atramat.s3.us-east-1.amazonaws.com");
+  }
 
-  // Security headers (XSS, clickjacking, MIME sniffing, etc.)
+  // CSP: useDefaults false so our directives are not overridden by Helmet defaults
   app.use(
     helmet({
       contentSecurityPolicy: isProduction
         ? {
+            useDefaults: false,
             directives: {
               defaultSrc: ["'self'"],
               scriptSrc: ["'self'", "https://static.cloudflareinsights.com"],
               scriptSrcElem: ["'self'", "https://static.cloudflareinsights.com"],
               styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
               styleSrcElem: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-              imgSrc: ["'self'", "data:", "blob:", ...s3ImgSrc],
+              imgSrc: ["'self'", "data:", "blob:", ...s3Origins],
               connectSrc: ["'self'"],
               fontSrc: ["'self'", "https://fonts.gstatic.com"],
               frameAncestors: ["'self'"],
+              baseUri: ["'self'"],
+              formAction: ["'self'"],
+              objectSrc: ["'none'"],
             },
           }
         : false,

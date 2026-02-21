@@ -42,8 +42,16 @@ async function ensureSchema() {
     const photoUrlsColumnExists = columnResult.rows[0].exists;
     
     if (!photoUrlsColumnExists) {
-      console.log("[Ensure Schema] ⚠️  Column findings.photo_urls missing. Running db:push...");
-      await runDbPush(pool);
+      console.log("[Ensure Schema] ⚠️  Column findings.photo_urls missing. Adding column...");
+      try {
+        await pool.query(`ALTER TABLE findings ADD COLUMN IF NOT EXISTS photo_urls text;`);
+        console.log("[Ensure Schema] ✅ Column photo_urls added successfully");
+      } catch (alterErr: any) {
+        console.warn("[Ensure Schema] ALTER TABLE failed:", alterErr.message, "- trying db:push...");
+        await runDbPush(pool);
+        return;
+      }
+      await pool.end();
       return;
     }
     
