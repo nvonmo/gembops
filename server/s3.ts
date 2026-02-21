@@ -16,8 +16,8 @@ const s3Config: S3ClientConfig = {
 };
 
 export const s3Client = new S3Client(s3Config);
-export const S3_BUCKET = process.env.S3_BUCKET || "";
-export const S3_PUBLIC_URL = process.env.S3_PUBLIC_URL || ""; // Public URL base (e.g., https://bucket.region.digitaloceanspaces.com)
+export const S3_BUCKET = (process.env.S3_BUCKET || "").trim();
+export const S3_PUBLIC_URL = (process.env.S3_PUBLIC_URL || "").trim().replace(/\s+/g, ""); // Public URL base, no newlines/spaces
 
 // Check if S3 is configured
 export const isS3Configured = () => {
@@ -51,9 +51,10 @@ export async function uploadToS3(
   await s3Client.send(command);
   console.log("[S3] Uploaded:", key);
 
-  // Return public URL
+  // Return public URL (ensure no newlines)
   if (S3_PUBLIC_URL) {
-    return `${S3_PUBLIC_URL}/${key}`;
+    const base = S3_PUBLIC_URL.replace(/\s+/g, "").replace(/\/+$/, "");
+    return `${base}/${key}`.replace(/\s+/g, "");
   }
 
   // Fallback: construct URL from bucket and region
@@ -91,29 +92,40 @@ export async function deleteFromS3(key: string): Promise<void> {
 }
 
 /**
+ * Remove newlines and extra spaces from a URL (fixes env vars pasted with line breaks).
+ */
+function sanitizeUrl(url: string): string {
+  return url.replace(/\s+/g, "").trim();
+}
+
+/**
  * Return the public URL for an S3 key (e.g. "uploads/123.jpg").
  * Use when you have a relative path stored and need the full S3 URL for the client.
  */
 export function getPublicUrlForKey(key: string): string {
   if (!key) return key;
-  const k = key.startsWith("/") ? key.slice(1) : key;
+  const k = key.replace(/\s+/g, "").trim().replace(/^\/+/, "");
   if (S3_PUBLIC_URL) {
-    return S3_PUBLIC_URL.endsWith("/") ? `${S3_PUBLIC_URL}${k}` : `${S3_PUBLIC_URL}/${k}`;
+    const base = S3_PUBLIC_URL.replace(/\/+$/, "");
+    return sanitizeUrl(`${base}/${k}`);
   }
-  const region = process.env.S3_REGION || "us-east-1";
+  const region = (process.env.S3_REGION || "us-east-1").trim();
   return `https://${S3_BUCKET}.s3.${region}.amazonaws.com/${k}`;
 }
 
 /**
  * If S3 is configured and url is a relative /uploads/ path, return full S3 URL; else return url as-is.
+ * Always sanitizes the result so no newlines break the image src.
  */
 export function resolvePhotoUrl(url: string | null): string | null {
   if (!url) return null;
-  if (!isS3Configured()) return url;
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  const key = url.startsWith("/uploads/") ? url.slice(1) : url.startsWith("uploads/") ? url : null;
+  const u = sanitizeUrl(url);
+  if (!u) return null;
+  if (!isS3Configured()) return u;
+  if (u.startsWith("http://") || u.startsWith("https://")) return u;
+  const key = u.startsWith("/uploads/") ? u.slice(1) : u.startsWith("uploads/") ? u : null;
   if (key) return getPublicUrlForKey(key);
-  return url;
+  return u;
 }
 
 /**
