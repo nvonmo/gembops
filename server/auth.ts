@@ -165,8 +165,8 @@ export const isAdmin: RequestHandler = async (req: any, res, next) => {
   }
   try {
     const [user] = await db.select().from(users).where(eq(users.id, req.session.userId));
-    console.log("[isAdmin] User check:", { userId: req.session.userId, userRole: user?.role, isAdmin: user?.role === "admin" });
-    if (!user || user.role !== "admin") {
+    const isAdminRole = user?.role != null && String(user.role).toLowerCase() === "admin";
+    if (!user || !isAdminRole) {
       return res.status(403).json({ message: "No tienes permisos de administrador" });
     }
     next();
