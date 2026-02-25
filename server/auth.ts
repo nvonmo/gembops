@@ -117,8 +117,14 @@ export function setupAuth(app: Express) {
       }
 
       req.session.userId = user.id;
-      const { password: _, ...safeUser } = user;
-      res.json(safeUser);
+      req.session.save((err) => {
+        if (err) {
+          console.error("Error saving session after login:", err);
+          return res.status(500).json({ message: "Error al iniciar sesión" });
+        }
+        const { password: _, ...safeUser } = user;
+        res.json(safeUser);
+      });
     } catch (error) {
       console.error("Error logging in:", error);
       res.status(500).json({ message: "Error al iniciar sesion" });
@@ -167,11 +173,15 @@ export const isAdmin: RequestHandler = async (req: any, res, next) => {
     const [user] = await db.select().from(users).where(eq(users.id, req.session.userId));
     const isAdminRole = user?.role != null && String(user.role).toLowerCase() === "admin";
     if (!user || !isAdminRole) {
-      return res.status(403).json({ message: "No tienes permisos de administrador" });
+      return res.status(403).json({
+        message: "No tienes permisos de administrador",
+        yourRole: user?.role ?? null,
+        hint: "Si tu rol se actualizó a admin recientemente, cierra sesión y vuelve a entrar.",
+      });
     }
     next();
   } catch (error) {
     console.error("Error checking admin:", error);
-    res.status(500).json({ message: "Error al verificar permisos" });
+    return res.status(500).json({ message: "Error al verificar permisos" });
   }
 };

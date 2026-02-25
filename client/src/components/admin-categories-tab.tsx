@@ -160,8 +160,9 @@ export default function AdminCategoriesTab() {
             />
             <Button
               onClick={handleCreate}
-              disabled={createMutation.isPending || !newCategoryName.trim()}
+              disabled={createMutation.isPending}
               className="shrink-0"
+              title={!newCategoryName.trim() ? "Escribe un nombre para la categoría" : undefined}
             >
               <Plus className="h-4 w-4 mr-2" />
               Crear

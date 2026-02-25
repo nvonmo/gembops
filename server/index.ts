@@ -7,6 +7,11 @@ import { createServer } from "http";
 const app = express();
 const httpServer = createServer(app);
 
+// Required when behind a reverse proxy (e.g. Railway, Nginx) so cookies and protocol are correct
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
+
 setupSecurity(app);
 
 declare module "http" {

@@ -156,8 +156,9 @@ export default function AdminAreasTab() {
             />
             <Button
               onClick={handleCreate}
-              disabled={createMutation.isPending || !newAreaName.trim()}
+              disabled={createMutation.isPending}
               className="shrink-0"
+              title={!newAreaName.trim() ? "Escribe un nombre para el área" : undefined}
             >
               <Plus className="h-4 w-4 mr-2" />
               Crear
