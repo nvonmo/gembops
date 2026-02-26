@@ -32,6 +32,16 @@ interface Notification {
   createdAt: string;
 }
 
+interface FindingDetail {
+  id: number;
+  description: string;
+  category: string;
+  area?: string | null;
+  photoUrl?: string | null;
+  photoUrls?: string[];
+  areas?: string[];
+}
+
 export function NotificationsDropdown() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -47,6 +57,11 @@ export function NotificationsDropdown() {
   const { data: pendingCount = { count: 0 } } = useQuery<{ count: number }>({
     queryKey: ["/api/notifications/pending-count"],
     refetchInterval: 30000,
+  });
+
+  const { data: findingDetail, isLoading: findingDetailLoading } = useQuery<FindingDetail>({
+    queryKey: [`/api/findings/${dueDateDialogOpen}`],
+    enabled: !!dueDateDialogOpen,
   });
 
   const markAsReadMutation = useMutation({
@@ -212,11 +227,58 @@ export function NotificationsDropdown() {
                         Establecer fecha compromiso
                       </Button>
                     </DialogTrigger>
-                    <DialogContent onClick={(e) => e.stopPropagation()}>
+                    <DialogContent onClick={(e) => e.stopPropagation()} className="max-w-md max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Establecer fecha de compromiso</DialogTitle>
                       </DialogHeader>
                       <div className="space-y-4 pt-2">
+                        {findingDetailLoading ? (
+                          <div className="text-sm text-muted-foreground py-4">Cargando hallazgo...</div>
+                        ) : findingDetail ? (
+                          <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+                            <p className="text-sm font-medium text-muted-foreground">Hallazgo asignado</p>
+                            <p className="text-sm leading-relaxed">{findingDetail.description}</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              <Badge variant="secondary" className="text-xs">{findingDetail.category}</Badge>
+                              {(findingDetail.areas?.[0] ?? findingDetail.area) && (
+                                <Badge variant="outline" className="text-xs">{findingDetail.areas?.[0] ?? findingDetail.area}</Badge>
+                              )}
+                            </div>
+                            {(() => {
+                              const mediaUrls: string[] = findingDetail.photoUrls?.length ? findingDetail.photoUrls : (findingDetail.photoUrl ? [findingDetail.photoUrl] : []);
+                              if (mediaUrls.length === 0) return null;
+                              return (
+                                <div className="flex flex-wrap gap-2">
+                                  {mediaUrls.slice(0, 6).map((url, idx) => {
+                                    const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
+                                    return isVideo ? (
+                                      <video
+                                        key={idx}
+                                        src={url}
+                                        referrerPolicy="no-referrer"
+                                        className="w-20 h-20 object-cover rounded-md border"
+                                        muted
+                                        playsInline
+                                      />
+                                    ) : (
+                                      <img
+                                        key={idx}
+                                        src={url}
+                                        alt={`Adjunto ${idx + 1}`}
+                                        loading="lazy"
+                                        referrerPolicy="no-referrer"
+                                        className="w-20 h-20 object-cover rounded-md border"
+                                      />
+                                    );
+                                  })}
+                                  {mediaUrls.length > 6 && (
+                                    <span className="text-xs text-muted-foreground self-center">+{mediaUrls.length - 6}</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : null}
                         <div className="space-y-2">
                           <Label>Fecha compromiso</Label>
                           <Input

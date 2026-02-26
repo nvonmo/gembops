@@ -801,6 +801,79 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/findings/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "ID de hallazgo inválido" });
+      }
+      const [f] = await db
+        .select({
+          id: findings.id,
+          gembaWalkId: findings.gembaWalkId,
+          area: findings.area,
+          category: findings.category,
+          description: findings.description,
+          responsibleId: findings.responsibleId,
+          dueDate: findings.dueDate,
+          status: findings.status,
+          photoUrl: findings.photoUrl,
+          photoUrls: findings.photoUrls,
+          closeComment: findings.closeComment,
+          closeEvidenceUrl: findings.closeEvidenceUrl,
+          createdAt: findings.createdAt,
+        })
+        .from(findings)
+        .where(eq(findings.id, id));
+      if (!f) {
+        return res.status(404).json({ message: "Hallazgo no encontrado" });
+      }
+      const walkIds = [f.gembaWalkId];
+      const allWalks = await db.select({
+        id: gembaWalks.id,
+        area: gembaWalks.area,
+        date: gembaWalks.date,
+        leaderId: gembaWalks.leaderId,
+      }).from(gembaWalks).where(inArray(gembaWalks.id, walkIds));
+      const walkMap = new Map(allWalks.map((w) => [w.id, w]));
+      const walkAreasData = await db.select().from(gembaWalkAreas).where(inArray(gembaWalkAreas.gembaWalkId, walkIds));
+      const walkAreasMap = new Map<number, string[]>();
+      walkAreasData.forEach(wa => {
+        const existing = walkAreasMap.get(wa.gembaWalkId) || [];
+        walkAreasMap.set(wa.gembaWalkId, [...existing, wa.areaName]);
+      });
+      const getAllAreasForWalk = (walkId: number): string[] => {
+        const walk = walkMap.get(walkId);
+        if (!walk) return [];
+        const additionalAreas = walkAreasMap.get(walkId) || [];
+        return [walk.area, ...additionalAreas].filter(Boolean);
+      };
+      const [responsibleUser] = await db.select({
+        id: users.id,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+      }).from(users).where(eq(users.id, f.responsibleId));
+      const photoUrlsRaw = f.photoUrls ? (typeof f.photoUrls === "string" ? JSON.parse(f.photoUrls) : f.photoUrls) : [];
+      const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : [];
+      const firstPhoto = photoUrlsResolved.length > 0 ? photoUrlsResolved[0] : resolvePhotoUrl(f.photoUrl);
+      const findingWithDetails = {
+        ...f,
+        photoUrl: firstPhoto,
+        photoUrls: photoUrlsResolved.length > 0 ? photoUrlsResolved : (f.photoUrl ? [resolvePhotoUrl(f.photoUrl)] : []),
+        closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
+        responsibleUser: responsibleUser || null,
+        areas: getAllAreasForWalk(f.gembaWalkId),
+      };
+      res.json(findingWithDetails);
+    } catch (error: any) {
+      console.error("Error fetching finding by id:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Error al obtener hallazgo" });
+      }
+    }
+  });
+
   app.post("/api/findings", isAuthenticated, upload.array("photos", 10), async (req: any, res) => {
     try {
       const { gembaWalkId, area, category, description, responsibleId, status } = req.body;
