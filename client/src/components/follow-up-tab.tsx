@@ -317,10 +317,14 @@ export default function FollowUpTab() {
                           <p className="text-sm leading-relaxed flex-1">{f.description}</p>
                           {f.photoUrl && (
                             (() => {
+                              const toAbs = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
+                              const absUrl = toAbs(f.photoUrl.trim());
                               const isVideo = f.photoUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || f.photoUrl.includes("video");
+                              const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
+                              const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
                               return isVideo ? (
                                 <video
-                                  src={f.photoUrl}
+                                  src={videoSrc}
                                   referrerPolicy="no-referrer"
                                   className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() => handleImageClick(f.photoUrl!)}
@@ -330,7 +334,7 @@ export default function FollowUpTab() {
                               ) : (
                                 <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border shrink-0 overflow-hidden bg-muted">
                                   <img
-                                    src={f.photoUrl}
+                                    src={absUrl}
                                     alt="Hallazgo"
                                     loading="lazy"
                                     decoding="async"
@@ -361,10 +365,14 @@ export default function FollowUpTab() {
                           <div className="mt-2">
                             <p className="text-xs text-muted-foreground mb-1">Evidencia de cierre:</p>
                             {(() => {
+                              const toAbs = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
+                              const absUrl = toAbs(f.closeEvidenceUrl!.trim());
                               const isVideo = f.closeEvidenceUrl!.match(/\.(mp4|webm|ogg|mov|avi)$/i) || f.closeEvidenceUrl!.includes("video");
+                              const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
+                              const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
                               return isVideo ? (
                                 <video
-                                  src={f.closeEvidenceUrl}
+                                  src={videoSrc}
                                   referrerPolicy="no-referrer"
                                   className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
                                   onClick={() => handleImageClick(f.closeEvidenceUrl!)}
@@ -374,7 +382,7 @@ export default function FollowUpTab() {
                               ) : (
                                 <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0">
                                   <img
-                                    src={f.closeEvidenceUrl}
+                                    src={absUrl}
                                     alt="Evidencia de cierre"
                                     loading="lazy"
                                     decoding="async"
@@ -425,7 +433,7 @@ export default function FollowUpTab() {
           <div className="p-4 border-b">
             <DialogTitle className="text-lg">
               {selectedImageUrl && (selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video"))
-                ? "Ver video"
+                ? (/\.mp4$/i.test(selectedImageUrl) ? "Ver video (MP4)" : "Ver video (MOV)")
                 : "Ver imagen"}
             </DialogTitle>
           </div>
@@ -436,11 +444,17 @@ export default function FollowUpTab() {
                 const displayUrl = toAbsolute(selectedImageUrl.trim());
                 const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
                 const isMov = /\.mov$/i.test(selectedImageUrl);
+                const isMp4 = /\.mp4$/i.test(selectedImageUrl);
+                const isExternal = (displayUrl.startsWith("http://") || displayUrl.startsWith("https://")) && !displayUrl.startsWith(window.location.origin);
+                const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(displayUrl)}` : displayUrl;
                 return isVideo ? (
                   <>
+                    <p className="text-sm text-muted-foreground text-center">
+                      {isMp4 ? "Usa el botón de reproducir (▶) abajo. Si no carga, descarga el archivo." : "Los .MOV a veces no se reproducen en Chrome. Si no ves el video, descarga el archivo."}
+                    </p>
                     <video
-                      key={displayUrl}
-                      src={displayUrl}
+                      key={videoSrc}
+                      src={videoSrc}
                       controls
                       autoPlay
                       playsInline
@@ -450,11 +464,9 @@ export default function FollowUpTab() {
                     >
                       Tu navegador no soporta la reproducción de videos.
                     </video>
-                    {(videoLoadError || isMov) && (
-                      <p className="text-sm text-muted-foreground text-center">
-                        {isMov && "Chrome y otros navegadores a menudo no reproducen .MOV. "}
-                        {videoLoadError && "No se pudo reproducir en el navegador. "}
-                        Descarga el archivo:
+                    {videoLoadError && (
+                      <p className="text-sm text-destructive font-medium text-center">
+                        No se pudo cargar. Prueba descargar el video o verifica que sea el hallazgo con video en MP4 (subido después del 26 feb).
                       </p>
                     )}
                     <Button variant="outline" size="sm" asChild>

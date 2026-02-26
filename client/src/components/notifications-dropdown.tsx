@@ -254,10 +254,12 @@ export function NotificationsDropdown() {
                                   {mediaUrls.slice(0, 6).map((url, idx) => {
                                     const absUrl = toAbsolute(url.trim());
                                     const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
+                                    const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
+                                    const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
                                     return isVideo ? (
                                       <video
                                         key={idx}
-                                        src={absUrl}
+                                        src={videoSrc}
                                         referrerPolicy="no-referrer"
                                         className="w-20 h-20 object-cover rounded-md border"
                                         muted

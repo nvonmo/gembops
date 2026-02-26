@@ -1153,10 +1153,12 @@ function FindingCard({
             {mediaUrls.slice(0, 4).map((url, idx) => {
               const absUrl = toAbsolute(url.trim());
               const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
+              const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
+              const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
               return isVideo ? (
                 <video
                   key={idx}
-                  src={absUrl}
+                  src={videoSrc}
                   className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={() => handleImageClick(absUrl)}
                   data-testid={`video-finding-${finding.id}-${idx}`}
@@ -1233,9 +1235,11 @@ function FindingCard({
               {(() => {
                 const closeEvidenceAbs = toAbsolute(finding.closeEvidenceUrl!.trim());
                 const isVideo = finding.closeEvidenceUrl!.match(/\.(mp4|webm|ogg|mov|avi)$/i) || finding.closeEvidenceUrl!.includes("video");
+                const isExternal = (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) && !closeEvidenceAbs.startsWith(window.location.origin);
+                const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
                 return isVideo ? (
                   <video
-                    src={closeEvidenceAbs}
+                    src={videoSrc}
                     className="w-full max-w-xs rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => handleImageClick(closeEvidenceAbs)}
                     muted
@@ -1440,7 +1444,7 @@ function FindingCard({
               <div className="p-4 border-b">
                 <DialogTitle className="text-lg">
                   {selectedImageUrl && (selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video"))
-                    ? "Ver video"
+                    ? (/\.mp4$/i.test(selectedImageUrl) ? "Ver video (MP4)" : "Ver video (MOV)")
                     : "Ver imagen"}
                 </DialogTitle>
               </div>
@@ -1450,11 +1454,17 @@ function FindingCard({
                     const displayUrl = toAbsolute(selectedImageUrl.trim());
                     const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
                     const isMov = /\.mov$/i.test(selectedImageUrl);
+                    const isMp4 = /\.mp4$/i.test(selectedImageUrl);
+                    const isExternal = (displayUrl.startsWith("http://") || displayUrl.startsWith("https://")) && !displayUrl.startsWith(window.location.origin);
+                    const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(displayUrl)}` : displayUrl;
                     return isVideo ? (
                       <>
+                        <p className="text-sm text-muted-foreground text-center">
+                          {isMp4 ? "Usa el botón de reproducir (▶) abajo. Si no carga, descarga el archivo." : "Los .MOV a veces no se reproducen en Chrome. Si no ves el video, descarga el archivo."}
+                        </p>
                         <video
-                          key={displayUrl}
-                          src={displayUrl}
+                          key={videoSrc}
+                          src={videoSrc}
                           controls
                           autoPlay
                           playsInline
@@ -1464,11 +1474,9 @@ function FindingCard({
                         >
                           Tu navegador no soporta la reproducción de videos.
                         </video>
-                        {(videoLoadError || isMov) && (
-                          <p className="text-sm text-muted-foreground text-center">
-                            {isMov && "Chrome y otros navegadores a menudo no reproducen .MOV. "}
-                            {videoLoadError && "No se pudo reproducir en el navegador. "}
-                            Descarga el archivo:
+                        {videoLoadError && (
+                          <p className="text-sm text-destructive font-medium text-center">
+                            No se pudo cargar. Prueba descargar el video o verifica que el hallazgo sea el que tiene video en MP4 (subido después del 26 feb).
                           </p>
                         )}
                         <Button variant="outline" size="sm" asChild>

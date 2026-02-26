@@ -12,7 +12,8 @@ import path from "path";
 import fs from "fs";
 import { addWeeks, addMonths, parseISO, format } from "date-fns";
 import { s3Storage } from "./s3-storage.js";
-import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3 } from "./s3.js";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3, extractS3KeyFromUrl, s3Client, S3_BUCKET } from "./s3.js";
 import { convertMovToMp4, isMovFile } from "./video-convert.js";
 
 // Fallback to local storage if S3 is not configured
@@ -72,6 +73,48 @@ export async function registerRoutes(
       }
     });
   }
+
+  // Proxy S3 media (video/images) to avoid CORS so <video> can play in the app
+  app.get("/api/media", isAuthenticated, async (req: any, res) => {
+    try {
+      const rawUrl = req.query.url;
+      if (!rawUrl || typeof rawUrl !== "string") {
+        return res.status(400).json({ message: "Missing url" });
+      }
+      const key = extractS3KeyFromUrl(decodeURIComponent(rawUrl));
+      if (!key || !key.startsWith("uploads/")) {
+        return res.status(400).json({ message: "Invalid media URL" });
+      }
+      if (!isS3Configured() || !S3_BUCKET) {
+        return res.status(503).json({ message: "S3 not configured" });
+      }
+      const range = req.headers.range as string | undefined;
+      const command = new GetObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+        ...(range ? { Range: range } : {}),
+      });
+      const response = await s3Client.send(command);
+      const body = response.Body;
+      if (!body) {
+        return res.status(404).json({ message: "Not found" });
+      }
+      const contentType = response.ContentType ?? (key.match(/\.mp4$/i) ? "video/mp4" : "application/octet-stream");
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Accept-Ranges", "bytes");
+      res.setHeader("Cache-Control", "public, max-age=3600");
+      const contentLength = response.ContentLength;
+      if (contentLength != null) res.setHeader("Content-Length", String(contentLength));
+      if (range && response.ContentRange && contentLength != null) {
+        res.status(206);
+        res.setHeader("Content-Range", response.ContentRange);
+      }
+      body.pipe(res);
+    } catch (err) {
+      console.error("[Media] Error streaming from S3:", err);
+      if (!res.headersSent) res.status(500).json({ message: "Error loading media" });
+    }
+  });
 
   app.get("/api/gemba-walks", isAuthenticated, async (req: any, res) => {
     try {
