@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -140,6 +140,7 @@ export function NotificationsDropdown() {
   const actionRequiredNotifications = notifications.filter(n => n.isActionRequired && !n.isActionCompleted);
 
   return (
+    <Fragment>
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="relative">
@@ -419,5 +420,6 @@ export function NotificationsDropdown() {
         </div>
       </DialogContent>
     </Dialog>
+    </Fragment>
   );
 }
