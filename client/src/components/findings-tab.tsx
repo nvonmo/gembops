@@ -1122,6 +1122,7 @@ function FindingCard({
   };
 
   const mediaUrls: string[] = (finding as any).photoUrls?.length ? (finding as any).photoUrls : (finding.photoUrl ? [finding.photoUrl] : []);
+  const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
 
   return (
     <Card className="p-3 sm:p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
@@ -1148,14 +1149,14 @@ function FindingCard({
         {mediaUrls.length > 0 && (
           <div className="flex items-center gap-1 flex-wrap shrink-0">
             {mediaUrls.slice(0, 4).map((url, idx) => {
+              const absUrl = toAbsolute(url.trim());
               const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
               return isVideo ? (
                 <video
                   key={idx}
-                  src={url}
-                  referrerPolicy="no-referrer"
+                  src={absUrl}
                   className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => handleImageClick(url)}
+                  onClick={() => handleImageClick(absUrl)}
                   data-testid={`video-finding-${finding.id}-${idx}`}
                   muted
                   playsInline
@@ -1163,13 +1164,13 @@ function FindingCard({
               ) : (
                 <div key={idx} className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted">
                   <img
-                    src={url}
+                    src={absUrl}
                     alt={`Hallazgo ${idx + 1}`}
                     loading="lazy"
                     decoding="async"
                     referrerPolicy="no-referrer"
                     className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleImageClick(url)}
+                    onClick={() => handleImageClick(absUrl)}
                     data-testid={`img-finding-${finding.id}-${idx}`}
                   />
                 </div>
@@ -1178,7 +1179,7 @@ function FindingCard({
             {mediaUrls.length > 4 && (
               <button
                 type="button"
-                onClick={() => handleImageClick(mediaUrls[4])}
+                onClick={() => handleImageClick(toAbsolute(mediaUrls[4].trim()))}
                 className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground hover:bg-muted/80"
               >
                 +{mediaUrls.length - 4}
@@ -1228,26 +1229,26 @@ function FindingCard({
             <div className="space-y-1">
               <p className="text-xs font-medium text-muted-foreground">Evidencia de cierre:</p>
               {(() => {
+                const closeEvidenceAbs = toAbsolute(finding.closeEvidenceUrl!.trim());
                 const isVideo = finding.closeEvidenceUrl!.match(/\.(mp4|webm|ogg|mov|avi)$/i) || finding.closeEvidenceUrl!.includes("video");
                 return isVideo ? (
                   <video
-                    src={finding.closeEvidenceUrl}
-                    referrerPolicy="no-referrer"
+                    src={closeEvidenceAbs}
                     className="w-full max-w-xs rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleImageClick(finding.closeEvidenceUrl!)}
+                    onClick={() => handleImageClick(closeEvidenceAbs)}
                     muted
                     playsInline
                   />
                 ) : (
                   <div className="w-full max-w-xs rounded-md border overflow-hidden bg-muted">
                     <img
-                      src={finding.closeEvidenceUrl}
+                      src={closeEvidenceAbs}
                       alt="Evidencia de cierre"
                       loading="lazy"
                       decoding="async"
                       referrerPolicy="no-referrer"
                       className="w-full h-auto object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => handleImageClick(finding.closeEvidenceUrl!)}
+                      onClick={() => handleImageClick(closeEvidenceAbs)}
                     />
                   </div>
                 );
@@ -1444,22 +1445,26 @@ function FindingCard({
               <div className="p-4 flex items-center justify-center bg-muted/50">
                 {selectedImageUrl && (
                   (() => {
+                    const displayUrl = toAbsolute(selectedImageUrl.trim());
                     const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
                     return isVideo ? (
                       <video
-                        src={selectedImageUrl}
+                        key={displayUrl}
+                        src={displayUrl}
                         controls
                         autoPlay
+                        playsInline
                         className="max-w-full max-h-[70vh] rounded-md"
                       >
                         Tu navegador no soporta la reproducción de videos.
                       </video>
                     ) : (
                       <img
-                        src={selectedImageUrl}
+                        src={displayUrl}
                         alt="Imagen ampliada"
                         loading="eager"
                         decoding="async"
+                        referrerPolicy="no-referrer"
                         className="max-w-full max-h-[70vh] object-contain rounded-md"
                       />
                     );

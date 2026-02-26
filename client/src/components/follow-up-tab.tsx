@@ -430,22 +430,27 @@ export default function FollowUpTab() {
           <div className="p-4 flex items-center justify-center bg-muted/50">
             {selectedImageUrl && (
               (() => {
+                const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
+                const displayUrl = toAbsolute(selectedImageUrl.trim());
                 const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
                 return isVideo ? (
                   <video
-                    src={selectedImageUrl}
+                    key={displayUrl}
+                    src={displayUrl}
                     controls
                     autoPlay
+                    playsInline
                     className="max-w-full max-h-[70vh] rounded-md"
                   >
                     Tu navegador no soporta la reproducción de videos.
                   </video>
                 ) : (
                   <img
-                    src={selectedImageUrl}
+                    src={displayUrl}
                     alt="Imagen ampliada"
                     loading="eager"
                     decoding="async"
+                    referrerPolicy="no-referrer"
                     className="max-w-full max-h-[70vh] object-contain rounded-md"
                   />
                 );

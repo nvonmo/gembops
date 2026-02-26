@@ -245,16 +245,19 @@ export function NotificationsDropdown() {
                               )}
                             </div>
                             {(() => {
-                              const mediaUrls: string[] = findingDetail.photoUrls?.length ? findingDetail.photoUrls : (findingDetail.photoUrl ? [findingDetail.photoUrl] : []);
+                              const rawUrls: string[] = findingDetail.photoUrls?.length ? findingDetail.photoUrls : (findingDetail.photoUrl ? [findingDetail.photoUrl] : []);
+                              const mediaUrls = rawUrls.filter((u): u is string => !!u && typeof u === "string" && u.trim() !== "");
+                              const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
                               if (mediaUrls.length === 0) return null;
                               return (
                                 <div className="flex flex-wrap gap-2">
                                   {mediaUrls.slice(0, 6).map((url, idx) => {
+                                    const absUrl = toAbsolute(url.trim());
                                     const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
                                     return isVideo ? (
                                       <video
                                         key={idx}
-                                        src={url}
+                                        src={absUrl}
                                         referrerPolicy="no-referrer"
                                         className="w-20 h-20 object-cover rounded-md border"
                                         muted
@@ -263,9 +266,9 @@ export function NotificationsDropdown() {
                                     ) : (
                                       <img
                                         key={idx}
-                                        src={url}
+                                        src={absUrl}
                                         alt={`Adjunto ${idx + 1}`}
-                                        loading="lazy"
+                                        loading="eager"
                                         referrerPolicy="no-referrer"
                                         className="w-20 h-20 object-cover rounded-md border"
                                       />

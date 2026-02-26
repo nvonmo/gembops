@@ -855,12 +855,16 @@ export async function registerRoutes(
         lastName: users.lastName,
       }).from(users).where(eq(users.id, f.responsibleId));
       const photoUrlsRaw = f.photoUrls ? (typeof f.photoUrls === "string" ? JSON.parse(f.photoUrls) : f.photoUrls) : [];
-      const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : [];
-      const firstPhoto = photoUrlsResolved.length > 0 ? photoUrlsResolved[0] : resolvePhotoUrl(f.photoUrl);
+      const photoUrlsResolved = Array.isArray(photoUrlsRaw)
+        ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)).filter((u): u is string => u != null && u !== "")
+        : [];
+      const fallbackPhoto = resolvePhotoUrl(f.photoUrl);
+      const photoUrlsFinal = photoUrlsResolved.length > 0 ? photoUrlsResolved : (fallbackPhoto ? [fallbackPhoto] : []);
+      const firstPhoto = photoUrlsFinal[0] ?? fallbackPhoto ?? null;
       const findingWithDetails = {
         ...f,
         photoUrl: firstPhoto,
-        photoUrls: photoUrlsResolved.length > 0 ? photoUrlsResolved : (f.photoUrl ? [resolvePhotoUrl(f.photoUrl)] : []),
+        photoUrls: photoUrlsFinal,
         closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
         responsibleUser: responsibleUser || null,
         areas: getAllAreasForWalk(f.gembaWalkId),
