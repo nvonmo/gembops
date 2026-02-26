@@ -1156,15 +1156,20 @@ function FindingCard({
               const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
               const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
               return isVideo ? (
-                <video
+                <button
                   key={idx}
-                  src={videoSrc}
-                  className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
+                  type="button"
                   onClick={() => handleImageClick(absUrl)}
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 flex shrink-0"
                   data-testid={`video-finding-${finding.id}-${idx}`}
-                  muted
-                  playsInline
-                />
+                >
+                  <video
+                    src={videoSrc}
+                    className="w-full h-full object-cover pointer-events-none"
+                    muted
+                    playsInline
+                  />
+                </button>
               ) : (
                 <div key={idx} className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted">
                   <img
@@ -1238,13 +1243,18 @@ function FindingCard({
                 const isExternal = (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) && !closeEvidenceAbs.startsWith(window.location.origin);
                 const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
                 return isVideo ? (
-                  <video
-                    src={videoSrc}
-                    className="w-full max-w-xs rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
+                  <button
+                    type="button"
                     onClick={() => handleImageClick(closeEvidenceAbs)}
-                    muted
-                    playsInline
-                  />
+                    className="w-full max-w-xs rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 block"
+                  >
+                    <video
+                      src={videoSrc}
+                      className="w-full h-auto object-cover pointer-events-none"
+                      muted
+                      playsInline
+                    />
+                  </button>
                 ) : (
                   <div className="w-full max-w-xs rounded-md border overflow-hidden bg-muted">
                     <img

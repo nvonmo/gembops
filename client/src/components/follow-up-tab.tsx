@@ -323,14 +323,19 @@ export default function FollowUpTab() {
                               const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
                               const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
                               return isVideo ? (
-                                <video
-                                  src={videoSrc}
-                                  referrerPolicy="no-referrer"
-                                  className="w-12 h-12 sm:w-14 sm:h-14 object-cover rounded-md border shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+                                <button
+                                  type="button"
                                   onClick={() => handleImageClick(f.photoUrl!)}
-                                  muted
-                                  playsInline
-                                />
+                                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0"
+                                >
+                                  <video
+                                    src={videoSrc}
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover pointer-events-none"
+                                    muted
+                                    playsInline
+                                  />
+                                </button>
                               ) : (
                                 <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border shrink-0 overflow-hidden bg-muted">
                                   <img
@@ -371,14 +376,19 @@ export default function FollowUpTab() {
                               const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
                               const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
                               return isVideo ? (
-                                <video
-                                  src={videoSrc}
-                                  referrerPolicy="no-referrer"
-                                  className="w-24 h-24 sm:w-32 sm:h-32 object-cover rounded-md border cursor-pointer hover:opacity-80 transition-opacity"
+                                <button
+                                  type="button"
                                   onClick={() => handleImageClick(f.closeEvidenceUrl!)}
-                                  muted
-                                  playsInline
-                                />
+                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block"
+                                >
+                                  <video
+                                    src={videoSrc}
+                                    referrerPolicy="no-referrer"
+                                    className="w-full h-full object-cover pointer-events-none"
+                                    muted
+                                    playsInline
+                                  />
+                                </button>
                               ) : (
                                 <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0">
                                   <img
