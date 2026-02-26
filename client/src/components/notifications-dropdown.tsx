@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
-import { Bell, Check, CheckCheck, CalendarDays } from "lucide-react";
+import { Bell, Check, CheckCheck, CalendarDays, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -48,6 +48,9 @@ export function NotificationsDropdown() {
   const [open, setOpen] = useState(false);
   const [dueDateDialogOpen, setDueDateDialogOpen] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState("");
+  const [selectedMediaUrl, setSelectedMediaUrl] = useState<string | null>(null);
+  const [mediaModalOpen, setMediaModalOpen] = useState(false);
+  const [videoLoadError, setVideoLoadError] = useState(false);
 
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
@@ -256,24 +259,41 @@ export function NotificationsDropdown() {
                                     const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
                                     const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
                                     const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
+                                    const openMedia = () => {
+                                      setSelectedMediaUrl(absUrl);
+                                      setVideoLoadError(false);
+                                      setMediaModalOpen(true);
+                                    };
                                     return isVideo ? (
-                                      <video
+                                      <button
                                         key={idx}
-                                        src={videoSrc}
-                                        referrerPolicy="no-referrer"
-                                        className="w-20 h-20 object-cover rounded-md border"
-                                        muted
-                                        playsInline
-                                      />
+                                        type="button"
+                                        onClick={openMedia}
+                                        className="w-20 h-20 rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 shrink-0"
+                                      >
+                                        <video
+                                          src={videoSrc}
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover pointer-events-none"
+                                          muted
+                                          playsInline
+                                        />
+                                      </button>
                                     ) : (
-                                      <img
+                                      <button
                                         key={idx}
-                                        src={absUrl}
-                                        alt={`Adjunto ${idx + 1}`}
-                                        loading="eager"
-                                        referrerPolicy="no-referrer"
-                                        className="w-20 h-20 object-cover rounded-md border"
-                                      />
+                                        type="button"
+                                        onClick={openMedia}
+                                        className="w-20 h-20 rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 shrink-0"
+                                      >
+                                        <img
+                                          src={absUrl}
+                                          alt={`Adjunto ${idx + 1}`}
+                                          loading="eager"
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </button>
                                     );
                                   })}
                                   {mediaUrls.length > 6 && (
@@ -336,5 +356,68 @@ export function NotificationsDropdown() {
         )}
       </DropdownMenuContent>
     </DropdownMenu>
+
+    {/* Modal para ver imagen/video al hacer clic en miniatura */}
+    <Dialog open={mediaModalOpen} onOpenChange={(open) => {
+      setMediaModalOpen(open);
+      if (!open) setSelectedMediaUrl(null);
+    }}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-2 sm:p-0">
+        <div className="p-4 border-b">
+          <DialogTitle className="text-lg">
+            {selectedMediaUrl && (selectedMediaUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedMediaUrl.includes("video"))
+              ? (/\.mp4$/i.test(selectedMediaUrl) ? "Ver video (MP4)" : "Ver video (MOV)")
+              : "Ver imagen"}
+          </DialogTitle>
+        </div>
+        <div className="p-4 flex flex-col items-center justify-center bg-muted/50 gap-3">
+          {selectedMediaUrl && (() => {
+            const displayUrl = selectedMediaUrl.startsWith("http://") || selectedMediaUrl.startsWith("https://") ? selectedMediaUrl : `${window.location.origin}${selectedMediaUrl.startsWith("/") ? selectedMediaUrl : `/${selectedMediaUrl}`}`;
+            const isVideo = selectedMediaUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedMediaUrl.includes("video");
+            const isExternal = (displayUrl.startsWith("http://") || displayUrl.startsWith("https://")) && !displayUrl.startsWith(window.location.origin);
+            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(displayUrl)}` : displayUrl;
+            return isVideo ? (
+              <>
+                <p className="text-sm text-muted-foreground text-center">
+                  {/\.mp4$/i.test(selectedMediaUrl) ? "Usa el botón de reproducir (▶) abajo." : "Los .MOV a veces no se reproducen en Chrome. Si no ves el video, descarga el archivo."}
+                </p>
+                <video
+                  key={videoSrc}
+                  src={videoSrc}
+                  controls
+                  autoPlay
+                  playsInline
+                  onError={() => setVideoLoadError(true)}
+                  onLoadedData={() => setVideoLoadError(false)}
+                  className="max-w-full max-h-[70vh] rounded-md"
+                >
+                  Tu navegador no soporta la reproducción de videos.
+                </video>
+                {videoLoadError && (
+                  <p className="text-sm text-destructive font-medium text-center">
+                    No se pudo cargar. Prueba descargar el video.
+                  </p>
+                )}
+                <Button variant="outline" size="sm" asChild>
+                  <a href={displayUrl} download target="_blank" rel="noopener noreferrer" className="gap-2">
+                    <Download className="h-4 w-4" />
+                    Descargar video
+                  </a>
+                </Button>
+              </>
+            ) : (
+              <img
+                src={displayUrl}
+                alt="Imagen ampliada"
+                loading="eager"
+                decoding="async"
+                referrerPolicy="no-referrer"
+                className="max-w-full max-h-[70vh] object-contain rounded-md"
+              />
+            );
+          })()}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
