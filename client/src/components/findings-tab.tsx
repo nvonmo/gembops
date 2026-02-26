@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw } from "lucide-react";
+import { Plus, User, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
@@ -1055,12 +1055,14 @@ function FindingCard({
   const [dueDate, setDueDate] = useState(finding.dueDate || "");
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [videoLoadError, setVideoLoadError] = useState(false);
   const isResponsible = user?.id === finding.responsibleId;
   const [walk] = walks.filter(w => w.id === finding.gembaWalkId);
   const isCreator = walk?.createdBy === user?.id;
 
   const handleImageClick = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl);
+    setVideoLoadError(false);
     setImageModalOpen(true);
   };
 
@@ -1442,22 +1444,40 @@ function FindingCard({
                     : "Ver imagen"}
                 </DialogTitle>
               </div>
-              <div className="p-4 flex items-center justify-center bg-muted/50">
+              <div className="p-4 flex flex-col items-center justify-center bg-muted/50 gap-3">
                 {selectedImageUrl && (
                   (() => {
                     const displayUrl = toAbsolute(selectedImageUrl.trim());
                     const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
+                    const isMov = /\.mov$/i.test(selectedImageUrl);
                     return isVideo ? (
-                      <video
-                        key={displayUrl}
-                        src={displayUrl}
-                        controls
-                        autoPlay
-                        playsInline
-                        className="max-w-full max-h-[70vh] rounded-md"
-                      >
-                        Tu navegador no soporta la reproducción de videos.
-                      </video>
+                      <>
+                        <video
+                          key={displayUrl}
+                          src={displayUrl}
+                          controls
+                          autoPlay
+                          playsInline
+                          onError={() => setVideoLoadError(true)}
+                          onLoadedData={() => setVideoLoadError(false)}
+                          className="max-w-full max-h-[70vh] rounded-md"
+                        >
+                          Tu navegador no soporta la reproducción de videos.
+                        </video>
+                        {(videoLoadError || isMov) && (
+                          <p className="text-sm text-muted-foreground text-center">
+                            {isMov && "Chrome y otros navegadores a menudo no reproducen .MOV. "}
+                            {videoLoadError && "No se pudo reproducir en el navegador. "}
+                            Descarga el archivo:
+                          </p>
+                        )}
+                        <Button variant="outline" size="sm" asChild>
+                          <a href={displayUrl} download target="_blank" rel="noopener noreferrer" className="gap-2">
+                            <Download className="h-4 w-4" />
+                            Descargar video
+                          </a>
+                        </Button>
+                      </>
                     ) : (
                       <img
                         src={displayUrl}

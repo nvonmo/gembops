@@ -32,6 +32,7 @@ export default function FollowUpTab() {
   const [filterMonth, setFilterMonth] = useState("");
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [videoLoadError, setVideoLoadError] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState<FindingWithUser | null>(null);
   const [closeComment, setCloseComment] = useState("");
@@ -39,6 +40,7 @@ export default function FollowUpTab() {
 
   const handleImageClick = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl);
+    setVideoLoadError(false);
     setImageModalOpen(true);
   };
 
@@ -427,23 +429,41 @@ export default function FollowUpTab() {
                 : "Ver imagen"}
             </DialogTitle>
           </div>
-          <div className="p-4 flex items-center justify-center bg-muted/50">
+          <div className="p-4 flex flex-col items-center justify-center bg-muted/50 gap-3">
             {selectedImageUrl && (
               (() => {
                 const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
                 const displayUrl = toAbsolute(selectedImageUrl.trim());
                 const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
+                const isMov = /\.mov$/i.test(selectedImageUrl);
                 return isVideo ? (
-                  <video
-                    key={displayUrl}
-                    src={displayUrl}
-                    controls
-                    autoPlay
-                    playsInline
-                    className="max-w-full max-h-[70vh] rounded-md"
-                  >
-                    Tu navegador no soporta la reproducción de videos.
-                  </video>
+                  <>
+                    <video
+                      key={displayUrl}
+                      src={displayUrl}
+                      controls
+                      autoPlay
+                      playsInline
+                      onError={() => setVideoLoadError(true)}
+                      onLoadedData={() => setVideoLoadError(false)}
+                      className="max-w-full max-h-[70vh] rounded-md"
+                    >
+                      Tu navegador no soporta la reproducción de videos.
+                    </video>
+                    {(videoLoadError || isMov) && (
+                      <p className="text-sm text-muted-foreground text-center">
+                        {isMov && "Chrome y otros navegadores a menudo no reproducen .MOV. "}
+                        {videoLoadError && "No se pudo reproducir en el navegador. "}
+                        Descarga el archivo:
+                      </p>
+                    )}
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={displayUrl} download target="_blank" rel="noopener noreferrer" className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Descargar video
+                      </a>
+                    </Button>
+                  </>
                 ) : (
                   <img
                     src={displayUrl}

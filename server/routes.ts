@@ -12,7 +12,8 @@ import path from "path";
 import fs from "fs";
 import { addWeeks, addMonths, parseISO, format } from "date-fns";
 import { s3Storage } from "./s3-storage.js";
-import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl } from "./s3.js";
+import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3 } from "./s3.js";
+import { convertMovToMp4, isMovFile } from "./video-convert.js";
 
 // Fallback to local storage if S3 is not configured
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -37,6 +38,20 @@ const upload = multer({
       cb(new Error("Solo se permiten imagenes y videos"));
     }
   },
+});
+
+const fileFilterImagesVideos = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  if (file.mimetype.startsWith("image/") || file.mimetype.startsWith("video/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Solo se permiten imagenes y videos"));
+  }
+};
+
+const uploadMemory = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+  fileFilter: fileFilterImagesVideos,
 });
 
 export async function registerRoutes(
@@ -878,7 +893,7 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/findings", isAuthenticated, upload.array("photos", 10), async (req: any, res) => {
+  app.post("/api/findings", isAuthenticated, uploadMemory.array("photos", 10), async (req: any, res) => {
     try {
       const { gembaWalkId, area, category, description, responsibleId, status } = req.body;
       const userId = req.session.userId;
@@ -906,16 +921,29 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Usuario responsable no encontrado" });
       }
 
-      // Build photo URLs from uploaded files (multiple photos/videos supported)
       const files = (req.files || []) as Express.Multer.File[];
       const photoUrls: string[] = [];
       for (const file of files) {
-        const fileAny = file as any;
+        let buffer = (file as any).buffer as Buffer;
+        let ext = path.extname(file.originalname).toLowerCase();
+        let contentType = file.mimetype;
+        if (buffer && isMovFile(file.originalname, file.mimetype)) {
+          const converted = await convertMovToMp4(buffer);
+          if (converted) {
+            buffer = converted;
+            ext = ".mp4";
+            contentType = "video/mp4";
+          }
+        }
         if (isS3Configured()) {
-          const raw = fileAny.location || (fileAny.key ? getPublicUrlForKey(fileAny.key) : null) || `/uploads/${file.filename}`;
-          photoUrls.push(resolvePhotoUrl(raw));
+          const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+          const url = await uploadToS3(key, buffer, contentType);
+          photoUrls.push(resolvePhotoUrl(url));
         } else {
-          photoUrls.push(`/uploads/${file.filename}`);
+          const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+          const destPath = path.join(uploadDir, filename);
+          await fs.promises.writeFile(destPath, buffer);
+          photoUrls.push(`/uploads/${filename}`);
         }
       }
       const photoUrl = photoUrls.length > 0 ? photoUrls[0] : null;
