@@ -770,43 +770,69 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
             {/* Participants: leader can confirm attendance */}
             {walkDetails.participants && walkDetails.participants.length > 0 && (
               <Card className="p-4">
-                <div className="flex items-center gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-2">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <Label className="text-sm font-medium">Integrantes</Label>
-                  {isLeader && (
-                    <span className="text-xs text-muted-foreground font-normal">
-                      — Marca a quienes asistieron
-                    </span>
-                  )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {walkDetails.participants.map((participant: any) => {
-                    const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
-                    const confirmed = !!participant.confirmedAt;
-                    const isConfirming = confirmParticipantMutation.isPending && confirmParticipantMutation.variables === participant.id;
-                    return (
-                      <div key={participant.id} className="flex items-center gap-2">
-                        <Badge variant="secondary" className="text-sm gap-1.5">
-                          {confirmed && <CheckCheck className="h-3.5 w-3.5 text-green-600" />}
-                          {displayName}
-                          {confirmed && <span className="text-xs text-muted-foreground">(asistió)</span>}
-                        </Badge>
-                        {isLeader && !confirmed && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="gap-1 h-7 text-xs"
-                            onClick={() => confirmParticipantMutation.mutate(participant.id)}
-                            disabled={confirmParticipantMutation.isPending}
-                          >
-                            <CheckCheck className="h-3 w-3" />
-                            {isConfirming ? "..." : "Confirmar asistencia"}
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                {isLeader ? (
+                  <>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Marca a quienes asistieron al recorrido tocando el botón debajo de cada nombre.
+                    </p>
+                    <div className="space-y-3">
+                      {walkDetails.participants.map((participant: any) => {
+                        const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
+                        const confirmed = !!participant.confirmedAt;
+                        const isConfirming = confirmParticipantMutation.isPending && confirmParticipantMutation.variables === participant.id;
+                        return (
+                          <div key={participant.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-md bg-muted/50">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Badge variant="secondary" className="text-sm gap-1.5 shrink-0">
+                                {confirmed && <CheckCheck className="h-3.5 w-3.5 text-green-600" />}
+                                {displayName}
+                                {confirmed && <span className="text-xs text-muted-foreground">(asistió)</span>}
+                              </Badge>
+                            </div>
+                            {!confirmed && (
+                              <Button
+                                size="sm"
+                                variant="default"
+                                className="gap-2 w-full sm:w-auto shrink-0"
+                                onClick={() => confirmParticipantMutation.mutate(participant.id)}
+                                disabled={confirmParticipantMutation.isPending}
+                              >
+                                <CheckCheck className="h-4 w-4" />
+                                {isConfirming ? "Confirmando..." : "Confirmar asistencia"}
+                              </Button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {walkDetails.participants.map((participant: any) => {
+                        const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
+                        const confirmed = !!participant.confirmedAt;
+                        return (
+                          <Badge key={participant.id} variant="secondary" className="text-sm gap-1.5">
+                            {confirmed && <CheckCheck className="h-3.5 w-3.5 text-green-600" />}
+                            {displayName}
+                            {confirmed && <span className="text-xs text-muted-foreground">(asistió)</span>}
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Solo el líder del recorrido puede confirmar quién asistió.
+                      {walkDetails.leader && (
+                        <> Líder: {[walkDetails.leader.firstName, walkDetails.leader.lastName].filter(Boolean).join(" ") || walkDetails.leader.username}.</>
+                      )}
+                    </p>
+                  </>
+                )}
               </Card>
             )}
 
