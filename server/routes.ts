@@ -133,17 +133,22 @@ export async function registerRoutes(
           leader = leaderUser;
         }
         
-        // Get participants info
+        // Get participants info with confirmedAt
         const participantIds = walkParticipants.map(p => p.userId);
         const participantUsers = participantIds.length > 0
           ? await db.select().from(users).where(inArray(users.id, participantIds))
           : [];
+        const participantMap = new Map(walkParticipants.map(p => [p.userId, p]));
+        const participantsWithConfirmation = participantUsers.map(u => ({
+          ...u,
+          confirmedAt: participantMap.get(u.id)?.confirmedAt ?? null,
+        }));
         
         return {
           ...walk,
           areas: [walk.area, ...walkAreas.map(a => a.areaName)],
           leader,
-          participants: participantUsers,
+          participants: participantsWithConfirmation,
         };
       }));
       
@@ -378,7 +383,7 @@ export async function registerRoutes(
         leader = leaderUser;
       }
       
-      // Get participants info
+      // Get participants info with confirmedAt
       const participantIds = walkParticipants.map(p => p.userId);
       const participantUsers = participantIds.length > 0
         ? await db.select({
@@ -388,6 +393,11 @@ export async function registerRoutes(
           lastName: users.lastName,
         }).from(users).where(inArray(users.id, participantIds))
         : [];
+      const participantMap = new Map(walkParticipants.map(p => [p.userId, p]));
+      const participantsWithConfirmation = participantUsers.map(u => ({
+        ...u,
+        confirmedAt: participantMap.get(u.id)?.confirmedAt ?? null,
+      }));
       
       // Get all findings for this walk
       const findings = await storage.getFindingsByGembaWalk(id);
@@ -424,13 +434,50 @@ export async function registerRoutes(
         ...walk,
         areas: [walk.area, ...walkAreas.map(a => a.areaName)],
         leader,
-        participants: participantUsers,
+        participants: participantsWithConfirmation,
         findings: findingsWithUsers,
         stats,
       });
     } catch (error) {
       console.error("Error fetching gemba walk details:", error);
       res.status(500).json({ message: "Error al obtener detalles del Gemba Walk" });
+    }
+  });
+
+  // Leader confirms that a participant attended the Gemba Walk
+  app.patch("/api/gemba-walks/:id/confirm-attendance", isAuthenticated, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+      }
+      const leaderId = req.session.userId;
+      const participantUserId = req.body?.userId;
+      if (!participantUserId || typeof participantUserId !== "string") {
+        return res.status(400).json({ message: "Falta el userId del participante a confirmar" });
+      }
+      const [walk] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, id));
+      if (!walk) {
+        return res.status(404).json({ message: "Gemba Walk no encontrado" });
+      }
+      if (walk.leaderId !== leaderId) {
+        return res.status(403).json({ message: "Solo el líder del Gemba Walk puede confirmar la asistencia de los participantes" });
+      }
+      const [updated] = await db
+        .update(gembaWalkParticipants)
+        .set({ confirmedAt: new Date() })
+        .where(and(
+          eq(gembaWalkParticipants.gembaWalkId, id),
+          eq(gembaWalkParticipants.userId, participantUserId)
+        ))
+        .returning({ id: gembaWalkParticipants.id });
+      if (!updated) {
+        return res.status(404).json({ message: "El usuario no es participante de este Gemba Walk" });
+      }
+      res.json({ success: true, confirmedAt: new Date().toISOString() });
+    } catch (error) {
+      console.error("Error confirming attendance:", error);
+      res.status(500).json({ message: "Error al confirmar asistencia" });
     }
   });
 

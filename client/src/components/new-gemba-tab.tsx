@@ -14,7 +14,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { GembaWalk, Area, Finding } from "@shared/schema";
 import { format, parseISO, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Calendar as CalendarIcon, Trash2, Users, UserCheck, X, List, CalendarDays, Eye, AlertCircle, CheckCircle2, Clock, Tag, User, Repeat } from "lucide-react";
+import { MapPin, Calendar as CalendarIcon, Trash2, Users, UserCheck, X, List, CalendarDays, Eye, AlertCircle, CheckCircle2, Clock, Tag, User, Repeat, CheckCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -23,6 +23,7 @@ interface User {
   username: string;
   firstName: string | null;
   lastName: string | null;
+  confirmedAt?: string | null;
 }
 
 export default function NewGembaTab({ userId }: { userId: string }) {
@@ -260,7 +261,6 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                       const walkAreas = walk.areas || [walk.area];
                       const walkLeader = walk.leader;
                       const walkParticipants = walk.participants || [];
-                      
                       return (
                         <Card key={walk.id} className="p-3 border-l-4 border-l-primary">
                           <div className="space-y-2">
@@ -333,7 +333,8 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                                   {walkParticipants.map((participant: User) => {
                                     const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
                                     return (
-                                      <Badge key={participant.id} variant="secondary" className="text-xs">
+                                      <Badge key={participant.id} variant="secondary" className="text-xs gap-1">
+                                        {participant.confirmedAt && <CheckCheck className="h-3 w-3 text-green-600" />}
                                         {displayName}
                                       </Badge>
                                     );
@@ -354,7 +355,6 @@ export default function NewGembaTab({ userId }: { userId: string }) {
             const walkAreas = walk.areas || [walk.area];
             const walkLeader = walk.leader;
             const walkParticipants = walk.participants || [];
-            
             return (
               <Card key={walk.id} className="p-3 sm:p-4 hover-elevate">
                 <div className="space-y-2">
@@ -431,7 +431,8 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                         {walkParticipants.map((participant: User) => {
                           const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
                           return (
-                            <Badge key={participant.id} variant="secondary" className="text-xs">
+                            <Badge key={participant.id} variant="secondary" className="text-xs gap-1">
+                              {participant.confirmedAt && <CheckCheck className="h-3 w-3 text-green-600" />}
                               {displayName}
                             </Badge>
                           );
@@ -665,10 +666,37 @@ interface GembaWalkDetailDialogProps {
 }
 
 function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }: GembaWalkDetailDialogProps) {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const { data: walkDetails, isLoading } = useQuery<any>({
     queryKey: ["/api/gemba-walks", walkId],
     enabled: !!walkId && open,
   });
+  const confirmParticipantMutation = useMutation({
+    mutationFn: async (participantUserId: string) => {
+      const res = await fetch(`/api/gemba-walks/${walkId}/confirm-attendance`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: participantUserId }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Error al confirmar");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks", walkId] });
+      toast({ title: "Asistencia confirmada", description: "Has registrado la asistencia del participante." });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+  const isLeader = walkDetails?.leader?.id === user?.id;
 
   if (!walkId) return null;
 
@@ -739,20 +767,43 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
               </div>
             </Card>
 
-            {/* Participants */}
+            {/* Participants: leader can confirm attendance */}
             {walkDetails.participants && walkDetails.participants.length > 0 && (
               <Card className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <Label className="text-sm font-medium">Integrantes</Label>
+                  {isLeader && (
+                    <span className="text-xs text-muted-foreground font-normal">
+                      — Marca a quienes asistieron
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {walkDetails.participants.map((participant: any) => {
                     const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
+                    const confirmed = !!participant.confirmedAt;
+                    const isConfirming = confirmParticipantMutation.isPending && confirmParticipantMutation.variables === participant.id;
                     return (
-                      <Badge key={participant.id} variant="secondary" className="text-sm">
-                        {displayName}
-                      </Badge>
+                      <div key={participant.id} className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-sm gap-1.5">
+                          {confirmed && <CheckCheck className="h-3.5 w-3.5 text-green-600" />}
+                          {displayName}
+                          {confirmed && <span className="text-xs text-muted-foreground">(asistió)</span>}
+                        </Badge>
+                        {isLeader && !confirmed && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 h-7 text-xs"
+                            onClick={() => confirmParticipantMutation.mutate(participant.id)}
+                            disabled={confirmParticipantMutation.isPending}
+                          >
+                            <CheckCheck className="h-3 w-3" />
+                            {isConfirming ? "..." : "Confirmar asistencia"}
+                          </Button>
+                        )}
+                      </div>
                     );
                   })}
                 </div>

@@ -33,6 +33,7 @@ export const gembaWalkParticipants = pgTable("gemba_walk_participants", {
   id: serial("id").primaryKey(),
   gembaWalkId: integer("gemba_walk_id").notNull().references(() => gembaWalks.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  confirmedAt: timestamp("confirmed_at"), // When the participant confirmed attendance
 });
 
 export const findings = pgTable("findings", {

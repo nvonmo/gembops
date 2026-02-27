@@ -231,7 +231,11 @@ export function NotificationsDropdown() {
                         Establecer fecha compromiso
                       </Button>
                     </DialogTrigger>
-                    <DialogContent onClick={(e) => e.stopPropagation()} className="max-w-md max-h-[90vh] overflow-y-auto">
+                    <DialogContent
+                        onClick={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        className="max-w-md max-h-[90vh] overflow-y-auto"
+                      >
                       <DialogHeader>
                         <DialogTitle>Establecer fecha de compromiso</DialogTitle>
                       </DialogHeader>
@@ -260,17 +264,22 @@ export function NotificationsDropdown() {
                                     const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
                                     const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
                                     const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
-                                    const openMedia = () => {
+                                    const openMedia = (e: React.MouseEvent | React.PointerEvent) => {
+                                      e.stopPropagation();
+                                      e.preventDefault();
                                       setSelectedMediaUrl(absUrl);
                                       setVideoLoadError(false);
                                       setMediaModalOpen(true);
                                     };
+                                    const btnClass = "w-20 h-20 min-w-[48px] min-h-[48px] rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 active:opacity-90 transition-opacity p-0 shrink-0";
                                     return isVideo ? (
                                       <button
                                         key={idx}
                                         type="button"
                                         onClick={openMedia}
-                                        className="w-20 h-20 rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 shrink-0"
+                                        onPointerUp={openMedia}
+                                        className={btnClass}
+                                        aria-label="Ver video"
                                       >
                                         <video
                                           src={videoSrc}
@@ -285,7 +294,9 @@ export function NotificationsDropdown() {
                                         key={idx}
                                         type="button"
                                         onClick={openMedia}
-                                        className="w-20 h-20 rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 shrink-0"
+                                        onPointerUp={openMedia}
+                                        className={btnClass}
+                                        aria-label={`Ver imagen ${idx + 1}`}
                                       >
                                         <img
                                           src={absUrl}
