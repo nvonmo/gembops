@@ -463,6 +463,16 @@ export async function registerRoutes(
       if (walk.leaderId !== leaderId) {
         return res.status(403).json({ message: "Solo el líder del Gemba Walk puede confirmar la asistencia de los participantes" });
       }
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() - 5);
+      const minDateStr = minDate.toISOString().slice(0, 10);
+      if (walk.date && walk.date > todayStr) {
+        return res.status(400).json({ message: "Solo puedes confirmar asistencia el día del recorrido o después" });
+      }
+      if (walk.date && walk.date < minDateStr) {
+        return res.status(400).json({ message: "Ya pasaron más de 5 días desde el recorrido; no se puede confirmar asistencia" });
+      }
       const [updated] = await db
         .update(gembaWalkParticipants)
         .set({ confirmedAt: new Date() })
@@ -1003,6 +1013,16 @@ export async function registerRoutes(
         return res.status(403).json({ 
           message: "Solo el líder del Gemba Walk puede crear hallazgos" 
         });
+      }
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const minDate = new Date();
+      minDate.setDate(minDate.getDate() - 5);
+      const minDateStr = minDate.toISOString().slice(0, 10);
+      if (walk.date && walk.date > todayStr) {
+        return res.status(400).json({ message: "Solo puedes registrar hallazgos en recorridos del día de hoy o fechas anteriores" });
+      }
+      if (walk.date && walk.date < minDateStr) {
+        return res.status(400).json({ message: "Solo puedes registrar hallazgos en recorridos de hoy o de los últimos 5 días" });
       }
       
       // Verify responsible user exists

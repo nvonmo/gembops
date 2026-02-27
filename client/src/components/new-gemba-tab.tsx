@@ -697,6 +697,11 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
     },
   });
   const isLeader = walkDetails?.leader?.id === user?.id;
+  const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
+  const minDate = format(new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
+  const walkDateStr = walkDetails?.date;
+  const isWalkTodayOrPast = !!walkDateStr && walkDateStr <= todayStr && walkDateStr >= minDate;
 
   if (!walkId) return null;
 
@@ -776,39 +781,51 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                 </div>
                 {isLeader ? (
                   <>
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Marca a quienes asistieron al recorrido tocando el botón debajo de cada nombre.
-                    </p>
-                    <div className="space-y-3">
-                      {walkDetails.participants.map((participant: any) => {
-                        const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
-                        const confirmed = !!participant.confirmedAt;
-                        const isConfirming = confirmParticipantMutation.isPending && confirmParticipantMutation.variables === participant.id;
-                        return (
-                          <div key={participant.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-md bg-muted/50">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <Badge variant="secondary" className="text-sm gap-1.5 shrink-0">
-                                {confirmed && <CheckCheck className="h-3.5 w-3.5 text-green-600" />}
-                                {displayName}
-                                {confirmed && <span className="text-xs text-muted-foreground">(asistió)</span>}
-                              </Badge>
-                            </div>
-                            {!confirmed && (
-                              <Button
-                                size="sm"
-                                variant="default"
-                                className="gap-2 w-full sm:w-auto shrink-0"
-                                onClick={() => confirmParticipantMutation.mutate(participant.id)}
-                                disabled={confirmParticipantMutation.isPending}
-                              >
-                                <CheckCheck className="h-4 w-4" />
-                                {isConfirming ? "Confirmando..." : "Confirmar asistencia"}
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                    {isWalkTodayOrPast ? (
+                      <>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Marca a quienes asistieron al recorrido tocando el botón debajo de cada nombre.
+                        </p>
+                        <div className="space-y-3">
+                          {walkDetails.participants.map((participant: any) => {
+                            const displayName = [participant.firstName, participant.lastName].filter(Boolean).join(" ") || participant.username;
+                            const confirmed = !!participant.confirmedAt;
+                            const isConfirming = confirmParticipantMutation.isPending && confirmParticipantMutation.variables === participant.id;
+                            return (
+                              <div key={participant.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-md bg-muted/50">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <Badge variant="secondary" className="text-sm gap-1.5 shrink-0">
+                                    {confirmed && <CheckCheck className="h-3.5 w-3.5 text-green-600" />}
+                                    {displayName}
+                                    {confirmed && <span className="text-xs text-muted-foreground">(asistió)</span>}
+                                  </Badge>
+                                </div>
+                                {!confirmed && (
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    className="gap-2 w-full sm:w-auto shrink-0"
+                                    onClick={() => confirmParticipantMutation.mutate(participant.id)}
+                                    disabled={confirmParticipantMutation.isPending}
+                                  >
+                                    <CheckCheck className="h-4 w-4" />
+                                    {isConfirming ? "Confirmando..." : "Confirmar asistencia"}
+                                  </Button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    ) : walkDateStr && walkDateStr > todayStr ? (
+                      <p className="text-xs text-muted-foreground">
+                        Podrás confirmar asistencia el día del recorrido ({walkDetails.date}) o después.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Ya pasaron más de 5 días desde este recorrido; no se puede confirmar asistencia.
+                      </p>
+                    )}
                   </>
                 ) : (
                   <>

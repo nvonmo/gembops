@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
+import { format } from "date-fns";
 
 // Categories are now loaded dynamically from the API
 
@@ -85,9 +86,12 @@ export default function FindingsTab() {
     queryKey: ["/api/gemba-walks"],
   });
   
-  // Filter walks where current user is the leader (for creation only)
+  // Filter walks: líder y fecha dentro de los últimos 5 días o hoy
+  const today = new Date();
+  const todayStr = format(today, "yyyy-MM-dd");
+  const minWalkDateStr = format(new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000), "yyyy-MM-dd");
   const walks = allWalks.filter((walk: any) => {
-    return walk.leaderId === user?.id;
+    return walk.leaderId === user?.id && walk.date && walk.date <= todayStr && walk.date >= minWalkDateStr;
   });
   
   // Use allWalks for displaying findings (everyone can see all findings)
@@ -399,7 +403,7 @@ export default function FindingsTab() {
                   <SelectContent>
                     {walks.length === 0 ? (
                       <SelectItem value="no-walks" disabled>
-                        No hay Gemba Walks donde seas líder
+                        No hay recorridos (últimos 5 días o hoy) donde seas líder
                       </SelectItem>
                     ) : (
                       walks.map((w: any) => {
@@ -607,7 +611,7 @@ export default function FindingsTab() {
         )}
         {walks.length === 0 && (
           <div className="text-sm text-muted-foreground">
-            Solo puedes crear hallazgos si eres líder de un Gemba Walk programado
+            Solo puedes crear hallazgos si eres líder de un Gemba Walk de hoy o de los últimos 5 días
           </div>
         )}
       </div>
