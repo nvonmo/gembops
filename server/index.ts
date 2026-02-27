@@ -72,6 +72,15 @@ app.use((req, res, next) => {
     console.error("[FATAL] DATABASE_URL is not set. Set it in Railway (or .env) and redeploy.");
     process.exit(1);
   }
+  // Ensure optional DB columns exist (e.g. after deploy without running db:push)
+  try {
+    const { pool } = await import("./db");
+    await pool.query(
+      "ALTER TABLE gemba_walk_participants ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP WITH TIME ZONE"
+    );
+  } catch (e) {
+    console.error("[migrate] Could not ensure confirmed_at column:", e);
+  }
   const { registerRoutes } = await import("./routes");
   await registerRoutes(httpServer, app);
 
