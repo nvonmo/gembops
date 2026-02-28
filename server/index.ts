@@ -72,14 +72,32 @@ app.use((req, res, next) => {
     console.error("[FATAL] DATABASE_URL is not set. Set it in Railway (or .env) and redeploy.");
     process.exit(1);
   }
-  // Ensure optional DB columns exist (e.g. after deploy without running db:push)
+  // Ensure optional DB columns exist and run table renames (e.g. after deploy without running db:push)
   try {
     const { pool } = await import("./db");
+    // Rename old table names so they are easier to find in Railway (e.g. walk_areas, walk_participants)
+    for (const [oldName, newName] of [
+      ["gemba_walk_areas", "walk_areas"],
+      ["gemba_walk_participants", "participants"],
+    ] as const) {
+      try {
+        await pool.query(
+          `ALTER TABLE "${oldName}" RENAME TO "${newName}"`
+        );
+        console.log(`[migrate] Renamed table ${oldName} → ${newName}`);
+      } catch (renameErr: any) {
+        if (renameErr?.code === "42P01") {
+          // Table does not exist (already renamed or fresh DB) — skip
+        } else {
+          console.warn(`[migrate] Rename ${oldName} → ${newName}:`, renameErr?.message || renameErr);
+        }
+      }
+    }
     await pool.query(
-      "ALTER TABLE gemba_walk_participants ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP WITH TIME ZONE"
+      "ALTER TABLE participants ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP WITH TIME ZONE"
     );
   } catch (e) {
-    console.error("[migrate] Could not ensure confirmed_at column:", e);
+    console.error("[migrate] Could not run migrations:", e);
   }
   const { registerRoutes } = await import("./routes");
   await registerRoutes(httpServer, app);

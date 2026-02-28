@@ -10,7 +10,7 @@ import { users } from "./models/auth";
 export const gembaWalks = pgTable("gemba_walks", {
   id: serial("id").primaryKey(),
   date: date("date").notNull(),
-  area: text("area").notNull(), // Keep for backward compatibility, but will use gemba_walk_areas for multiple
+  area: text("area").notNull(), // Keep for backward compatibility; multiple areas use walk_areas
   leaderId: varchar("leader_id"), // Leader of the Gemba Walk
   createdBy: varchar("created_by").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
@@ -21,15 +21,15 @@ export const gembaWalks = pgTable("gemba_walks", {
   parentWalkId: integer("parent_walk_id"), // Reference to the original recurring walk
 });
 
-// Table for multiple areas per Gemba Walk
-export const gembaWalkAreas = pgTable("gemba_walk_areas", {
+// Table for multiple areas per Gemba Walk (table name "walk_areas" to distinguish in DB UIs)
+export const gembaWalkAreas = pgTable("walk_areas", {
   id: serial("id").primaryKey(),
   gembaWalkId: integer("gemba_walk_id").notNull().references(() => gembaWalks.id, { onDelete: "cascade" }),
   areaName: text("area_name").notNull(),
 });
 
-// Table for participants of Gemba Walk
-export const gembaWalkParticipants = pgTable("gemba_walk_participants", {
+// Table for participants of Gemba Walk (table name "participants" to distinguish in DB UIs)
+export const gembaWalkParticipants = pgTable("participants", {
   id: serial("id").primaryKey(),
   gembaWalkId: integer("gemba_walk_id").notNull().references(() => gembaWalks.id, { onDelete: "cascade" }),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
