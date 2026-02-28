@@ -75,7 +75,7 @@ app.use((req, res, next) => {
   // Ensure optional DB columns exist and run table renames (e.g. after deploy without running db:push)
   try {
     const { pool } = await import("./db");
-    // Rename old table names so they are easier to find in Railway (e.g. walk_areas, walk_participants)
+    // Rename old table names so they are easier to find in Railway (walk_areas, participants)
     for (const [oldName, newName] of [
       ["gemba_walk_areas", "walk_areas"],
       ["gemba_walk_participants", "participants"],
@@ -86,8 +86,20 @@ app.use((req, res, next) => {
         );
         console.log(`[migrate] Renamed table ${oldName} → ${newName}`);
       } catch (renameErr: any) {
-        if (renameErr?.code === "42P01") {
-          // Table does not exist (already renamed or fresh DB) — skip
+        const code = renameErr?.code;
+        if (code === "42P01") {
+          // Old table does not exist (already renamed or fresh DB) — skip
+        } else if (code === "42P07") {
+          // New table already exists (e.g. after db:push): copy data from old, then drop old
+          try {
+            await pool.query(
+              `INSERT INTO "${newName}" SELECT * FROM "${oldName}" ON CONFLICT (id) DO NOTHING`
+            );
+            await pool.query(`DROP TABLE "${oldName}"`);
+            console.log(`[migrate] Migrated data ${oldName} → ${newName} and dropped ${oldName}`);
+          } catch (copyErr: any) {
+            console.warn(`[migrate] Copy ${oldName} → ${newName}:`, copyErr?.message || copyErr);
+          }
         } else {
           console.warn(`[migrate] Rename ${oldName} → ${newName}:`, renameErr?.message || renameErr);
         }
