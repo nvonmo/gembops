@@ -709,20 +709,21 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-lg sm:text-xl">
-              Detalles del Gemba Walk
-            </DialogTitle>
+          <div className="flex items-center gap-3 pr-8">
             {isAdmin && walkDetails && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => onDelete(walkId)}
-                className="h-8 w-8"
+                className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                title="Eliminar Gemba Walk"
               >
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Trash2 className="h-4 w-4" />
               </Button>
             )}
+            <DialogTitle className="text-lg sm:text-xl">
+              Detalles del Gemba Walk
+            </DialogTitle>
           </div>
         </DialogHeader>
 
