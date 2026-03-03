@@ -16,6 +16,14 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3, extractS3KeyFromUrl, s3Client, S3_BUCKET } from "./s3.js";
 import { convertMovToMp4, isMovFile } from "./video-convert.js";
 
+/** True if due date (YYYY-MM-DD) is before today by calendar day (UTC). Avoids timezone bugs. */
+function isOverdueByDateOnly(dueDate: string | null | undefined): boolean {
+  if (!dueDate) return false;
+  const d = new Date();
+  const todayUtc = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  return todayUtc > dueDate.slice(0, 10);
+}
+
 // Fallback to local storage if S3 is not configured
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -426,7 +434,7 @@ export async function registerRoutes(
         open: findingsWithUsers.filter(f => f.status === "open").length,
         closed: findingsWithUsers.filter(f => f.status === "closed").length,
         overdue: findingsWithUsers.filter(f => 
-          f.status !== "closed" && f.dueDate && new Date(f.dueDate) < new Date()
+          f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate)
         ).length,
       };
       
@@ -649,7 +657,7 @@ export async function registerRoutes(
       
       // 7. Hallazgos vencidos
       const overdueCount = allFindings.filter(f => {
-        return f.status !== "closed" && f.dueDate && new Date(f.dueDate) < now;
+        return f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate);
       }).length;
       
       const response = {
@@ -1344,7 +1352,7 @@ export async function registerRoutes(
         const creatorName = creatorUser
           ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
           : walk?.createdBy || "Sin asignar";
-        const isOverdue = f.status !== "closed" && f.dueDate && new Date(f.dueDate) < new Date();
+        const isOverdue = f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate);
         const statusClass = f.status === "closed" ? "closed" : isOverdue ? "overdue" : "";
         html += `<tr>
           <td>${i + 1}</td>

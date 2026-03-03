@@ -19,6 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { isOverdueByDate } from "@/lib/utils";
 
 // Categories are now loaded dynamically from the API
 
@@ -949,7 +950,7 @@ export default function FindingsTab() {
                   })();
               const walkArea = findingAreas.length > 0 ? findingAreas[0] : undefined;
               const statusInfo = STATUS_MAP[f.status] || STATUS_MAP.open;
-              const isOverdue = f.status !== "closed" && !!f.dueDate && new Date(f.dueDate) < new Date();
+              const isOverdue = f.status !== "closed" && !!f.dueDate && isOverdueByDate(f.dueDate);
               return (
                 <FindingCard
                   key={f.id}

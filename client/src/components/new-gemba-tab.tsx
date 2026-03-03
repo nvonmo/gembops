@@ -16,6 +16,7 @@ import type { GembaWalk, Area, Finding } from "@shared/schema";
 import { format, parseISO, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { MapPin, Calendar as CalendarIcon, Trash2, Users, UserCheck, X, List, CalendarDays, Eye, AlertCircle, CheckCircle2, Clock, Tag, User, Repeat, CheckCheck, Pencil } from "lucide-react";
+import { isOverdueByDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -947,7 +948,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
               {walkDetails.findings && walkDetails.findings.length > 0 ? (
                 <div className="space-y-3">
                   {walkDetails.findings.map((finding: Finding & { responsibleUser?: any }) => {
-                    const isOverdue = finding.status !== "closed" && finding.dueDate && new Date(finding.dueDate) < new Date();
+                    const isOverdue = finding.status !== "closed" && finding.dueDate && isOverdueByDate(finding.dueDate);
                     return (
                       <Card key={finding.id} className="p-3 border-l-4 border-l-primary">
                         <div className="space-y-2">

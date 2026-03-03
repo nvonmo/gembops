@@ -15,6 +15,7 @@ import type { Finding, GembaWalk } from "@shared/schema";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw } from "lucide-react";
+import { isOverdueByDate } from "@/lib/utils";
 
 interface User {
   id: string;
@@ -72,10 +73,9 @@ export default function FollowUpTab() {
     queryKey: ["/api/gemba-walks"],
   });
 
-  const now = new Date();
   const openFindings = findings.filter((f) => f.status !== "closed");
-  const overdue = openFindings.filter((f) => f.dueDate && new Date(f.dueDate) < now);
-  const pending = openFindings.filter((f) => f.dueDate && new Date(f.dueDate) >= now);
+  const overdue = openFindings.filter((f) => f.dueDate && isOverdueByDate(f.dueDate));
+  const pending = openFindings.filter((f) => f.dueDate && !isOverdueByDate(f.dueDate));
   const withoutDate = openFindings.filter((f) => !f.dueDate);
 
   const byResponsible = new Map<string, FindingWithUser[]>();
@@ -305,7 +305,7 @@ export default function FollowUpTab() {
               </CardHeader>
               <CardContent className="space-y-1 px-3 sm:px-6 pb-3 sm:pb-6">
                 {items.map((f) => {
-                  const isOverdue = f.dueDate ? new Date(f.dueDate) < now : false;
+                  const isOverdue = f.dueDate ? isOverdueByDate(f.dueDate) : false;
                   return (
                     <div
                       key={f.id}
