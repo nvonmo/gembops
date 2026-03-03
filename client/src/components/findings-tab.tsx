@@ -1223,48 +1223,50 @@ function FindingCard({
     <Card className="p-3 sm:p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-2 flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {(isLeader || isAdmin) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs gap-1 px-2"
+                  onClick={() => {
+                    setEditDescription(finding.description);
+                    setEditArea((finding as any).area || "");
+                    setEditCategory(finding.category);
+                    setEditPhotoFiles([]);
+                    setEditOpen(true);
+                  }}
+                  title="Editar hallazgo"
+                >
+                  <Edit className="h-3 w-3" />
+                  Editar
+                </Button>
+              )}
+              <Badge variant={statusInfo.variant} className="text-xs">
+                {statusInfo.label}
+              </Badge>
+              {(finding as any).riskIfRepeats && (
+                <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  Riesgo mayor si se repite
+                </Badge>
+              )}
+              {isOverdue && (
+                <Badge variant="destructive" className="text-xs">
+                  Vencido
+                </Badge>
+              )}
+              <Badge variant="secondary" className="text-xs">
+                <Tag className="h-3 w-3 mr-1" />
+                {finding.category}
+              </Badge>
+            </div>
             {(isLeader || isAdmin) && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 text-xs gap-1 px-2"
-                onClick={() => {
-                  setEditDescription(finding.description);
-                  setEditArea((finding as any).area || "");
-                  setEditCategory(finding.category);
-                  setEditPhotoFiles([]);
-                  setEditOpen(true);
-                }}
-                title="Editar hallazgo"
-              >
-                <Edit className="h-3 w-3" />
-                Editar
-              </Button>
-            )}
-            <Badge variant={statusInfo.variant} className="text-xs">
-              {statusInfo.label}
-            </Badge>
-            {(finding as any).riskIfRepeats && (
-              <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
-                <AlertTriangle className="h-3 w-3 mr-1" />
-                Riesgo mayor si se repite
-              </Badge>
-            )}
-            {isOverdue && (
-              <Badge variant="destructive" className="text-xs">
-                Vencido
-              </Badge>
-            )}
-            <Badge variant="secondary" className="text-xs">
-              <Tag className="h-3 w-3 mr-1" />
-              {finding.category}
-            </Badge>
-            {(isLeader || isAdmin) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 text-xs gap-1 px-2 text-amber-700 dark:text-amber-400"
+                className="h-6 text-xs gap-1 px-2 text-amber-700 dark:text-amber-400 self-start sm:self-auto"
                 onClick={() => {
                   const next = !(finding as any).riskIfRepeats;
                   const message = next
