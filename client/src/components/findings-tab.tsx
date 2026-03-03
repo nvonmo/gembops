@@ -393,17 +393,19 @@ export default function FindingsTab() {
                 setDialogOpen(open);
               }}
             >
-            <DialogTrigger asChild>
               <Button
                 data-testid="button-add-finding"
                 className="gap-1.5 min-h-[44px] sm:min-h-[36px] text-sm sm:text-xs touch-manipulation"
                 onClick={() => setDialogOpen(true)}
+                type="button"
               >
                 <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 <span className="whitespace-nowrap">Agregar</span>
               </Button>
-            </DialogTrigger>
-          <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
+          <DialogContent
+            className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90dvh] min-h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden p-4 sm:p-6 bg-background"
+            onOpenAutoFocus={(e) => e.preventDefault()}
+          >
             <DialogHeader>
               <DialogTitle>Nuevo Hallazgo</DialogTitle>
             </DialogHeader>
