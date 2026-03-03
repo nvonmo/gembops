@@ -238,21 +238,19 @@ export default function AdminUsersTab() {
                 <div className="space-y-2">
                   <Label>Departamento</Label>
                   <Select
-                    value={newUser.departmentId}
-                    onValueChange={(value) => setNewUser({ ...newUser, departmentId: value })}
+                    value={newUser.departmentId && newUser.departmentId !== "__none__" ? newUser.departmentId : "__none__"}
+                    onValueChange={(value) => setNewUser({ ...newUser, departmentId: value === "__none__" ? "" : value })}
                   >
                     <SelectTrigger className="text-base">
                       <SelectValue placeholder="Sin departamento" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Sin departamento</SelectItem>
-                      {departments
-                        .filter((d) => d.isActive)
-                        .map((d) => (
-                          <SelectItem key={d.id} value={String(d.id)}>
-                            {d.name}
-                          </SelectItem>
-                        ))}
+                      <SelectItem value="__none__">Sin departamento</SelectItem>
+                      {(departments || []).filter((d) => d.isActive !== false).map((d) => (
+                        <SelectItem key={d.id} value={String(d.id)}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -336,6 +334,25 @@ export default function AdminUsersTab() {
                       </Select>
                     </div>
                     <div className="space-y-2">
+                      <Label>Departamento</Label>
+                      <Select
+                        value={editingUser.departmentId != null && editingUser.departmentId !== "" ? String(editingUser.departmentId) : "__none__"}
+                        onValueChange={(value) => setEditingUser({ ...editingUser, departmentId: value === "__none__" ? "" : value })}
+                      >
+                        <SelectTrigger className="text-base">
+                          <SelectValue placeholder="Sin departamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Sin departamento</SelectItem>
+                          {(departments || []).filter((d) => d.isActive !== false).map((d) => (
+                            <SelectItem key={d.id} value={String(d.id)}>
+                              {d.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
                       <Label>Nombre</Label>
                       <Input
                         value={editingUser.firstName || ""}
@@ -359,27 +376,6 @@ export default function AdminUsersTab() {
                         onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
                         className="text-base"
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Departamento</Label>
-                      <Select
-                        value={editingUser.departmentId != null && editingUser.departmentId !== "" ? String(editingUser.departmentId) : ""}
-                        onValueChange={(value) => setEditingUser({ ...editingUser, departmentId: value })}
-                      >
-                        <SelectTrigger className="text-base">
-                          <SelectValue placeholder="Sin departamento" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">Sin departamento</SelectItem>
-                          {departments
-                            .filter((d) => d.isActive)
-                            .map((d) => (
-                              <SelectItem key={d.id} value={String(d.id)}>
-                                {d.name}
-                              </SelectItem>
-                            ))}
-                        </SelectContent>
-                      </Select>
                     </div>
                   </div>
                   <div className="flex gap-2">
