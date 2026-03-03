@@ -1270,54 +1270,20 @@ export async function registerRoutes(
       if (gembaId) {
         findingsList = await storage.getFindingsByGembaWalk(parseInt(gembaId));
       } else {
-        // Get findings from Gemba Walks created by user
-        let findingsFromCreatedWalks: Finding[];
+        // Reporte total: todos los hallazgos (cualquier usuario autenticado)
+        const allFindings = await db.select().from(findings).orderBy(desc(findings.createdAt));
         if (month && month !== "all" && month !== "") {
           const [year, mon] = month.split("-").map(Number);
-          // Get all findings first, then filter by month based on createdAt or dueDate
-          const allCreatedFindings = await storage.getFindingsByUser(userId);
           const start = new Date(year, mon - 1, 1);
           const end = new Date(year, mon, 1);
-          findingsFromCreatedWalks = allCreatedFindings.filter(f => {
+          findingsList = allFindings.filter(f => {
             if (!f.createdAt) return false;
             const findingDate = f.dueDate ? new Date(f.dueDate) : new Date(f.createdAt);
             return findingDate >= start && findingDate < end;
           });
         } else {
-          findingsFromCreatedWalks = await storage.getFindingsByUser(userId);
+          findingsList = allFindings;
         }
-        
-        console.log("[PDF Report] findingsFromCreatedWalks:", findingsFromCreatedWalks.length);
-        
-        // Also get findings where user is responsible
-        let findingsAsResponsible = await db
-          .select()
-          .from(findings)
-          .where(eq(findings.responsibleId, userId))
-          .orderBy(desc(findings.createdAt));
-        
-        console.log("[PDF Report] findingsAsResponsible (before filter):", findingsAsResponsible.length);
-        
-        // Filter by month if specified (use createdAt or dueDate)
-        if (month && month !== "all" && month !== "") {
-          const [year, mon] = month.split("-").map(Number);
-          const start = new Date(year, mon - 1, 1);
-          const end = new Date(year, mon, 1);
-          findingsAsResponsible = findingsAsResponsible.filter(f => {
-            if (!f.createdAt) return false;
-            const findingDate = f.dueDate ? new Date(f.dueDate) : new Date(f.createdAt);
-            return findingDate >= start && findingDate < end;
-          });
-        }
-        
-        console.log("[PDF Report] findingsAsResponsible (after filter):", findingsAsResponsible.length);
-        
-        // Combine and deduplicate by ID
-        const allFindingsMap = new Map<number, Finding>();
-        findingsFromCreatedWalks.forEach(f => allFindingsMap.set(f.id, f));
-        findingsAsResponsible.forEach(f => allFindingsMap.set(f.id, f));
-        findingsList = Array.from(allFindingsMap.values());
-        
         console.log("[PDF Report] Total findingsList:", findingsList.length);
       }
 
@@ -1416,58 +1382,24 @@ export async function registerRoutes(
       if (gembaId) {
         findingsList = await storage.getFindingsByGembaWalk(parseInt(gembaId));
       } else {
-        // Get findings from Gemba Walks created by user
-        let findingsFromCreatedWalks: Finding[];
+        // Reporte total: todos los hallazgos (cualquier usuario autenticado)
+        const allFindings = await db.select().from(findings).orderBy(desc(findings.createdAt));
         if (month && month !== "all" && month !== "") {
           const [year, mon] = month.split("-").map(Number);
-          // Get all findings first, then filter by month based on createdAt or dueDate
-          const allCreatedFindings = await storage.getFindingsByUser(userId);
           const start = new Date(year, mon - 1, 1);
           const end = new Date(year, mon, 1);
-          findingsFromCreatedWalks = allCreatedFindings.filter(f => {
+          findingsList = allFindings.filter(f => {
             if (!f.createdAt) return false;
             const findingDate = f.dueDate ? new Date(f.dueDate) : new Date(f.createdAt);
             return findingDate >= start && findingDate < end;
           });
         } else {
-          findingsFromCreatedWalks = await storage.getFindingsByUser(userId);
+          findingsList = allFindings;
         }
-        
-        console.log("[Excel Report] findingsFromCreatedWalks:", findingsFromCreatedWalks.length);
-        
-        // Also get findings where user is responsible
-        let findingsAsResponsible = await db
-          .select()
-          .from(findings)
-          .where(eq(findings.responsibleId, userId))
-          .orderBy(desc(findings.createdAt));
-        
-        console.log("[Excel Report] findingsAsResponsible (before filter):", findingsAsResponsible.length);
-        
-        // Filter by month if specified (use createdAt or dueDate)
-        if (month && month !== "all" && month !== "") {
-          const [year, mon] = month.split("-").map(Number);
-          const start = new Date(year, mon - 1, 1);
-          const end = new Date(year, mon, 1);
-          findingsAsResponsible = findingsAsResponsible.filter(f => {
-            if (!f.createdAt) return false;
-            const findingDate = f.dueDate ? new Date(f.dueDate) : new Date(f.createdAt);
-            return findingDate >= start && findingDate < end;
-          });
-        }
-        
-        console.log("[Excel Report] findingsAsResponsible (after filter):", findingsAsResponsible.length);
-        
-        // Combine and deduplicate by ID
-        const allFindingsMap = new Map<number, Finding>();
-        findingsFromCreatedWalks.forEach(f => allFindingsMap.set(f.id, f));
-        findingsAsResponsible.forEach(f => allFindingsMap.set(f.id, f));
-        findingsList = Array.from(allFindingsMap.values());
-        
         console.log("[Excel Report] Total findingsList:", findingsList.length);
       }
 
-      // Get all Gemba Walks referenced by findings (not just created by user)
+      // Get all Gemba Walks referenced by findings
       const walkIds = [...new Set(findingsList.map(f => f.gembaWalkId))];
       const allWalks = walkIds.length > 0
         ? await db.select().from(gembaWalks).where(inArray(gembaWalks.id, walkIds))
