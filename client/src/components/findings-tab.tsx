@@ -1265,7 +1265,14 @@ function FindingCard({
                 variant="ghost"
                 size="sm"
                 className="h-6 text-xs gap-1 px-2 text-amber-700 dark:text-amber-400"
-                onClick={() => updateMutation.mutate({ riskIfRepeats: !(finding as any).riskIfRepeats })}
+                onClick={() => {
+                  const next = !(finding as any).riskIfRepeats;
+                  const message = next
+                    ? "¿Confirmas que este hallazgo debe marcarse con la alerta de 'Riesgo mayor si se repite'? Esta acción quedará registrada."
+                    : "¿Confirmas que quieres quitar la alerta de 'Riesgo mayor si se repite' de este hallazgo?";
+                  if (!window.confirm(message)) return;
+                  updateMutation.mutate({ riskIfRepeats: next });
+                }}
                 disabled={updateMutation.isPending}
                 title={(finding as any).riskIfRepeats ? "Quitar alerta" : "Marcar: riesgo mayor si se repite"}
               >
