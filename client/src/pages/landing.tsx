@@ -3,10 +3,11 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { LogIn, Smartphone, Plus } from "lucide-react";
+import { LogIn, Smartphone, Plus, KeyRound } from "lucide-react";
 
 declare global {
   interface WindowEventMap {
@@ -23,6 +24,10 @@ export default function Landing() {
   const [password, setPassword] = useState("");
   const [showFirstAdmin, setShowFirstAdmin] = useState(false);
   const [firstAdminData, setFirstAdminData] = useState({ username: "", password: "", firstName: "" });
+  const [showResetPassword, setShowResetPassword] = useState(false);
+  const [resetUsername, setResetUsername] = useState("");
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [resetConfirm, setResetConfirm] = useState("");
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [installable, setInstallable] = useState(false);
   const { toast } = useToast();
@@ -106,6 +111,51 @@ export default function Landing() {
     createFirstAdminMutation.mutate();
   };
 
+  const resetPasswordMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/auth/reset-password", {
+        username: resetUsername.trim(),
+        newPassword: resetNewPassword,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Contraseña actualizada", description: "Ya puedes iniciar sesión con la nueva contraseña." });
+      setShowResetPassword(false);
+      setUsername(resetUsername.trim());
+      setPassword(resetNewPassword);
+      setResetUsername("");
+      setResetNewPassword("");
+      setResetConfirm("");
+    },
+    onError: (error: Error) => {
+      let msg = error.message || "No se pudo actualizar la contraseña";
+      const match = error.message?.match(/^\d+:\s*(\{.*\})$/);
+      if (match) {
+        try {
+          const body = JSON.parse(match[1]);
+          if (body.message) msg = body.message;
+        } catch {
+          /* use msg as is */
+        }
+      }
+      toast({ title: "Error", description: msg, variant: "destructive" });
+    },
+  });
+
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetNewPassword !== resetConfirm) {
+      toast({ title: "Error", description: "Las contraseñas no coinciden", variant: "destructive" });
+      return;
+    }
+    if (resetNewPassword.length < 4) {
+      toast({ title: "Error", description: "La contraseña debe tener al menos 4 caracteres", variant: "destructive" });
+      return;
+    }
+    resetPasswordMutation.mutate();
+  };
+
   const isPending = loginMutation.isPending;
 
   return (
@@ -177,6 +227,13 @@ export default function Landing() {
             <p className="text-xs text-center text-muted-foreground mt-4">
               ¿Necesitas una cuenta? Contacta a un administrador.
             </p>
+            <button
+              type="button"
+              onClick={() => setShowResetPassword(true)}
+              className="text-xs text-primary hover:underline w-full mt-1 block"
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
             {!showFirstAdmin && (
               <button
                 type="button"
@@ -187,6 +244,69 @@ export default function Landing() {
               </button>
             )}
           </Card>
+
+          <Dialog open={showResetPassword} onOpenChange={setShowResetPassword}>
+            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <KeyRound className="h-5 w-5" />
+                  Restablecer contraseña
+                </DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground">
+                Ingresa tu usuario y la nueva contraseña. Luego podrás entrar con ella.
+              </p>
+              <form onSubmit={handleResetPassword} className="space-y-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Usuario</Label>
+                  <Input
+                    type="text"
+                    value={resetUsername}
+                    onChange={(e) => setResetUsername(e.target.value)}
+                    placeholder="Tu usuario"
+                    className="text-base"
+                    required
+                    minLength={3}
+                    autoComplete="username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nueva contraseña</Label>
+                  <Input
+                    type="password"
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
+                    placeholder="Mínimo 4 caracteres"
+                    className="text-base"
+                    required
+                    minLength={4}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Confirmar nueva contraseña</Label>
+                  <Input
+                    type="password"
+                    value={resetConfirm}
+                    onChange={(e) => setResetConfirm(e.target.value)}
+                    placeholder="Repite la contraseña"
+                    className="text-base"
+                    required
+                    minLength={4}
+                    autoComplete="new-password"
+                  />
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setShowResetPassword(false)} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={resetPasswordMutation.isPending} className="flex-1">
+                    {resetPasswordMutation.isPending ? "Guardando..." : "Actualizar contraseña"}
+                  </Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
 
           {showFirstAdmin && (
             <Card className="p-5 border-primary/50">

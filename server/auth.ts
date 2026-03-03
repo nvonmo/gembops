@@ -4,7 +4,7 @@ import connectPg from "connect-pg-simple";
 import bcrypt from "bcryptjs";
 import { db } from "./db";
 import { users } from "@shared/models/auth";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { loginSchema, registerSchema } from "@shared/models/auth";
 
 declare module "express-session" {
@@ -145,6 +145,29 @@ export function setupAuth(app: Express) {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Error al obtener usuario" });
+    }
+  });
+
+  // TEMPORARY: reset password by username only (no auth). Remove when proper recovery flow exists.
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { username, newPassword } = req.body as { username?: string; newPassword?: string };
+      if (!username || typeof username !== "string" || username.trim().length < 3) {
+        return res.status(400).json({ message: "Usuario requerido (mínimo 3 caracteres)" });
+      }
+      if (!newPassword || typeof newPassword !== "string" || newPassword.length < 4) {
+        return res.status(400).json({ message: "La nueva contraseña debe tener al menos 4 caracteres" });
+      }
+      const [user] = await db.select({ id: users.id }).from(users).where(sql`LOWER(${users.username}) = LOWER(${username.trim()})`);
+      if (!user) {
+        return res.status(404).json({ message: "Usuario no encontrado" });
+      }
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await db.update(users).set({ password: hashedPassword, updatedAt: new Date() }).where(eq(users.id, user.id));
+      return res.json({ success: true, message: "Contraseña actualizada. Ya puedes iniciar sesión." });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      return res.status(500).json({ message: "Error al restablecer contraseña" });
     }
   });
 
