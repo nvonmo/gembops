@@ -1815,6 +1815,7 @@ export async function registerRoutes(
         firstName: users.firstName,
         lastName: users.lastName,
         role: users.role,
+        departmentId: users.departmentId,
         createdAt: users.createdAt,
         updatedAt: users.updatedAt,
       }).from(users).orderBy(users.username);

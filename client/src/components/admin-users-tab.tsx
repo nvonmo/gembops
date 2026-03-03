@@ -69,6 +69,7 @@ export default function AdminUsersTab() {
         lastName: "",
         email: "",
         role: "user",
+        departmentId: "",
       });
       toast({ title: "Usuario creado", description: "El usuario ha sido creado exitosamente." });
     },
@@ -132,6 +133,7 @@ export default function AdminUsersTab() {
       firstName: newUser.firstName.trim() || undefined,
       lastName: newUser.lastName.trim() || undefined,
       email: newUser.email.trim() || undefined,
+      departmentId: newUser.departmentId ? Number(newUser.departmentId) : null,
     });
   };
 
@@ -143,22 +145,20 @@ export default function AdminUsersTab() {
       lastName: user.lastName || "",
       email: user.email || "",
       role: user.role,
-      departmentId: user.departmentId ?? null,
+      departmentId: user.departmentId != null ? String(user.departmentId) : "",
     });
   };
 
   const handleSaveEdit = () => {
     if (!editingId) return;
+    const deptVal = (editingUser as any).departmentId;
     const updateData: any = {
       username: editingUser.username,
       firstName: editingUser.firstName || null,
       lastName: editingUser.lastName || null,
       email: editingUser.email || null,
       role: editingUser.role,
-      departmentId:
-        (editingUser as any).departmentId === "" || (editingUser as any).departmentId == null
-          ? null
-          : Number((editingUser as any).departmentId),
+      departmentId: deptVal === "" || deptVal == null ? null : Number(deptVal),
     };
     updateMutation.mutate({ id: editingId, data: updateData });
   };
@@ -234,27 +234,6 @@ export default function AdminUsersTab() {
                     placeholder="Apellido"
                     className="text-base"
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label>Departamento</Label>
-                  <Select
-                    value={newUser.departmentId}
-                    onValueChange={(value) => setNewUser({ ...newUser, departmentId: value })}
-                  >
-                    <SelectTrigger className="text-base">
-                      <SelectValue placeholder="Sin departamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Sin departamento</SelectItem>
-                      {departments
-                        .filter((d) => d.isActive)
-                        .map((d) => (
-                          <SelectItem key={d.id} value={String(d.id)}>
-                            {d.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Departamento</Label>
@@ -381,6 +360,27 @@ export default function AdminUsersTab() {
                         className="text-base"
                       />
                     </div>
+                    <div className="space-y-2">
+                      <Label>Departamento</Label>
+                      <Select
+                        value={editingUser.departmentId != null && editingUser.departmentId !== "" ? String(editingUser.departmentId) : ""}
+                        onValueChange={(value) => setEditingUser({ ...editingUser, departmentId: value })}
+                      >
+                        <SelectTrigger className="text-base">
+                          <SelectValue placeholder="Sin departamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Sin departamento</SelectItem>
+                          {departments
+                            .filter((d) => d.isActive)
+                            .map((d) => (
+                              <SelectItem key={d.id} value={String(d.id)}>
+                                {d.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button onClick={handleSaveEdit} disabled={updateMutation.isPending} className="flex-1">
@@ -417,6 +417,10 @@ export default function AdminUsersTab() {
                         {user.email && (
                           <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                         )}
+                        {user.departmentId != null && (() => {
+                          const dept = departments.find((d) => d.id === user.departmentId);
+                          return dept ? <p className="text-xs text-muted-foreground truncate">Departamento: {dept.name}</p> : null;
+                        })()}
                       </div>
                     </div>
                   </div>
