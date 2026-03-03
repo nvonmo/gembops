@@ -1363,7 +1363,11 @@ export async function registerRoutes(
             : walk?.leaderId || walk?.createdBy || "Sin asignar";
         const isOverdue = f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate);
         const statusClass = f.status === "closed" ? "closed" : isOverdue ? "overdue" : "";
-        const closedAtStr = f.closedAt ? new Date(f.closedAt).toLocaleDateString("es-MX") : "-";
+        const closedAtStr = f.closedAt
+          ? new Date(f.closedAt).toLocaleDateString("es-MX")
+          : f.status === "closed"
+            ? new Date().toLocaleDateString("es-MX")
+            : "-";
         const closeCommentEscaped = (f.closeComment || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         html += `<tr>
           <td>${i + 1}</td>
@@ -1465,7 +1469,11 @@ export async function registerRoutes(
           : creatorUser
             ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
             : walk?.leaderId || walk?.createdBy || "Sin asignar";
-        const closedAtStr = f.closedAt ? new Date(f.closedAt).toLocaleDateString("es-MX") : "-";
+        const closedAtStr = f.closedAt
+          ? new Date(f.closedAt).toLocaleDateString("es-MX")
+          : f.status === "closed"
+            ? new Date().toLocaleDateString("es-MX")
+            : "-";
         return [
           walk?.date || "-",
           raisedByName,
