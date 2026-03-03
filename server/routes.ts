@@ -1366,7 +1366,7 @@ export async function registerRoutes(
           <td>${i + 1}</td>
           <td>${walk?.date || "-"}</td>
           <td>${raisedByName}</td>
-          <td>${walk?.area || "-"}</td>
+          <td>${f.area || walk?.area || "-"}</td>
           <td>${f.category}</td>
           <td>${f.description}</td>
           <td>${responsibleName}</td>
@@ -1463,7 +1463,7 @@ export async function registerRoutes(
         return [
           walk?.date || "-",
           raisedByName,
-          walk?.area || "-",
+          (f.area || walk?.area || "-").replace(/\t/g, " "),
           f.category,
           f.description.replace(/\t/g, " "),
           responsibleName,
