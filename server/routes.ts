@@ -1309,7 +1309,12 @@ export async function registerRoutes(
         : [];
       const userMap = new Map(responsibleUsers.map(u => [u.id, u]));
 
-      // Get creators of Gemba Walks
+      // Get leaders of Gemba Walks (who actually raised the finding); fallback to creator if no leader
+      const leaderIds = [...new Set(allWalks.map(w => w.leaderId).filter(Boolean))];
+      const leaders = leaderIds.length > 0
+        ? await db.select().from(users).where(inArray(users.id, leaderIds))
+        : [];
+      const leaderMap = new Map(leaders.map(u => [u.id, u]));
       const creatorIds = [...new Set(allWalks.map(w => w.createdBy).filter(Boolean))];
       const creators = creatorIds.length > 0
         ? await db.select().from(users).where(inArray(users.id, creatorIds))
@@ -1348,16 +1353,19 @@ export async function registerRoutes(
         const responsibleName = responsibleUser 
           ? [responsibleUser.firstName, responsibleUser.lastName].filter(Boolean).join(" ") || responsibleUser.username
           : f.responsibleId || "Sin asignar";
+        const leaderUser = walk?.leaderId ? leaderMap.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
-        const creatorName = creatorUser
-          ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
-          : walk?.createdBy || "Sin asignar";
+        const raisedByName = leaderUser
+          ? [leaderUser.firstName, leaderUser.lastName].filter(Boolean).join(" ") || leaderUser.username
+          : creatorUser
+            ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
+            : walk?.leaderId || walk?.createdBy || "Sin asignar";
         const isOverdue = f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate);
         const statusClass = f.status === "closed" ? "closed" : isOverdue ? "overdue" : "";
         html += `<tr>
           <td>${i + 1}</td>
           <td>${walk?.date || "-"}</td>
-          <td>${creatorName}</td>
+          <td>${raisedByName}</td>
           <td>${walk?.area || "-"}</td>
           <td>${f.category}</td>
           <td>${f.description}</td>
@@ -1421,7 +1429,12 @@ export async function registerRoutes(
         : [];
       const userMap = new Map(responsibleUsers.map(u => [u.id, u]));
 
-      // Get creators of Gemba Walks
+      // Get leaders of Gemba Walks (who actually raised the finding); fallback to creator if no leader
+      const leaderIdsExcel = [...new Set(allWalks.map(w => w.leaderId).filter(Boolean))];
+      const leadersExcel = leaderIdsExcel.length > 0
+        ? await db.select().from(users).where(inArray(users.id, leaderIdsExcel))
+        : [];
+      const leaderMapExcel = new Map(leadersExcel.map(u => [u.id, u]));
       const creatorIds = [...new Set(allWalks.map(w => w.createdBy).filter(Boolean))];
       const creators = creatorIds.length > 0
         ? await db.select().from(users).where(inArray(users.id, creatorIds))
@@ -1440,13 +1453,16 @@ export async function registerRoutes(
         const responsibleName = responsibleUser 
           ? [responsibleUser.firstName, responsibleUser.lastName].filter(Boolean).join(" ") || responsibleUser.username
           : f.responsibleId || "Sin asignar";
+        const leaderUser = walk?.leaderId ? leaderMapExcel.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
-        const creatorName = creatorUser
-          ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
-          : walk?.createdBy || "Sin asignar";
+        const raisedByName = leaderUser
+          ? [leaderUser.firstName, leaderUser.lastName].filter(Boolean).join(" ") || leaderUser.username
+          : creatorUser
+            ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
+            : walk?.leaderId || walk?.createdBy || "Sin asignar";
         return [
           walk?.date || "-",
-          creatorName,
+          raisedByName,
           walk?.area || "-",
           f.category,
           f.description.replace(/\t/g, " "),
