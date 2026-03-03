@@ -394,7 +394,11 @@ export default function FindingsTab() {
               }}
             >
             <DialogTrigger asChild>
-              <Button data-testid="button-add-finding" className="gap-1.5 min-h-[44px] sm:min-h-[36px] text-sm sm:text-xs touch-manipulation">
+              <Button
+                data-testid="button-add-finding"
+                className="gap-1.5 min-h-[44px] sm:min-h-[36px] text-sm sm:text-xs touch-manipulation"
+                onClick={() => setDialogOpen(true)}
+              >
                 <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                 <span className="whitespace-nowrap">Agregar</span>
               </Button>
@@ -431,25 +435,29 @@ export default function FindingsTab() {
                   </SelectContent>
                 </Select>
               </div>
-              {selectedWalk && walkAreas.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Área específica donde se detectó el hallazgo</Label>
-                  <Select value={selectedArea} onValueChange={setSelectedArea}>
-                    <SelectTrigger className="text-base h-11 sm:h-10">
-                      <SelectValue placeholder="Seleccionar área" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {walkAreas.map((area: string) => (
-                        <SelectItem key={area} value={area} className="text-base py-3">
-                          {area}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    Selecciona el área específica donde se detectó este hallazgo
-                  </p>
-                </div>
+              {selectedWalk && (
+                walkAreas.length > 0 ? (
+                  <div className="space-y-2">
+                    <Label>Área específica donde se detectó el hallazgo</Label>
+                    <Select value={selectedArea} onValueChange={setSelectedArea}>
+                      <SelectTrigger className="text-base h-11 sm:h-10">
+                        <SelectValue placeholder="Seleccionar área" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {walkAreas.map((area: string) => (
+                          <SelectItem key={area} value={area} className="text-base py-3">
+                            {area}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Selecciona el área específica donde se detectó este hallazgo
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Este recorrido no tiene áreas asignadas; el hallazgo se guardará sin área.</p>
+                )
               )}
               <div className="space-y-2">
                 <div className="flex items-center gap-1.5">
@@ -649,7 +657,7 @@ export default function FindingsTab() {
                 className="w-full text-base min-h-[44px] sm:min-h-[36px] touch-manipulation"
                 disabled={
                   !selectedWalk ||
-                  !selectedArea ||
+                  (walkAreas.length > 0 && !selectedArea) ||
                   !category ||
                   !description ||
                   (!responsibleId && !departmentId) ||
