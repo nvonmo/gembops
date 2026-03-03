@@ -16,6 +16,13 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3, extractS3KeyFromUrl, s3Client, S3_BUCKET } from "./s3.js";
 import { convertMovToMp4, isMovFile } from "./video-convert.js";
 
+const MEXICO_TZ = "America/Mexico_City";
+
+/** Format date in Mexico timezone for reports. */
+function formatDateMexico(d: Date): string {
+  return d.toLocaleDateString("es-MX", { timeZone: MEXICO_TZ });
+}
+
 /** True if due date (YYYY-MM-DD) is before today by calendar day (UTC). Avoids timezone bugs. */
 function isOverdueByDateOnly(dueDate: string | null | undefined): boolean {
   if (!dueDate) return false;
@@ -1341,7 +1348,7 @@ export async function registerRoutes(
         </style>
       </head><body>
         <h1>Reporte Gemba Walk</h1>
-        <p>Generado: ${new Date().toLocaleDateString("es-MX")}${month && month !== "all" ? ` | Mes: ${month}` : ""}</p>
+        <p>Generado: ${formatDateMexico(new Date())}${month && month !== "all" ? ` | Mes: ${month}` : ""}</p>
         <table>
           <thead>
             <tr><th>#</th><th>Fecha Gemba Walk</th><th>Levantado por</th><th>Area</th><th>Categoria</th><th>Descripcion</th><th>Responsable</th><th>Fecha compromiso</th><th>Estatus</th><th>Fecha de cierre</th><th>Comentarios de cierre</th></tr>
@@ -1364,9 +1371,9 @@ export async function registerRoutes(
         const isOverdue = f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate);
         const statusClass = f.status === "closed" ? "closed" : isOverdue ? "overdue" : "";
         const closedAtStr = f.closedAt
-          ? new Date(f.closedAt).toLocaleDateString("es-MX")
+          ? formatDateMexico(new Date(f.closedAt))
           : f.status === "closed"
-            ? new Date().toLocaleDateString("es-MX")
+            ? formatDateMexico(new Date())
             : "-";
         const closeCommentEscaped = (f.closeComment || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         html += `<tr>
@@ -1470,9 +1477,9 @@ export async function registerRoutes(
             ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
             : walk?.leaderId || walk?.createdBy || "Sin asignar";
         const closedAtStr = f.closedAt
-          ? new Date(f.closedAt).toLocaleDateString("es-MX")
+          ? formatDateMexico(new Date(f.closedAt))
           : f.status === "closed"
-            ? new Date().toLocaleDateString("es-MX")
+            ? formatDateMexico(new Date())
             : "-";
         return [
           walk?.date || "-",
