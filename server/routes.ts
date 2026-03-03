@@ -534,6 +534,7 @@ export async function registerRoutes(
         .select({
           id: findings.id,
           gembaWalkId: findings.gembaWalkId,
+          area: findings.area,
           category: findings.category,
           description: findings.description,
           responsibleId: findings.responsibleId,
@@ -611,18 +612,12 @@ export async function registerRoutes(
         findingsByCategory.set(f.category, (findingsByCategory.get(f.category) || 0) + 1);
       });
       
-      // 3. Hallazgos por área
+      // 3. Hallazgos por área: cada hallazgo cuenta solo en SU área (donde se detectó), no en todas las áreas del recorrido
       const findingsByArea = new Map<string, number>();
       allFindings.forEach(f => {
-        const walk = walkMap.get(f.gembaWalkId);
-        if (walk) {
-          // Include main area and additional areas
-          const allAreas = [walk.area, ...(walkAreasMap.get(walk.id) || [])];
-          allAreas.forEach(area => {
-            if (area) {
-              findingsByArea.set(area, (findingsByArea.get(area) || 0) + 1);
-            }
-          });
+        const area = f.area || walkMap.get(f.gembaWalkId)?.area;
+        if (area) {
+          findingsByArea.set(area, (findingsByArea.get(area) || 0) + 1);
         }
       });
       
