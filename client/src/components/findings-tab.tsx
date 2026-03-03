@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -408,6 +408,7 @@ export default function FindingsTab() {
           >
             <DialogHeader>
               <DialogTitle>Nuevo Hallazgo</DialogTitle>
+              <DialogDescription className="sr-only">Formulario para registrar un nuevo hallazgo del Gemba Walk.</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-2">
               <div className="space-y-2">
@@ -446,7 +447,7 @@ export default function FindingsTab() {
                         <SelectValue placeholder="Seleccionar área" />
                       </SelectTrigger>
                       <SelectContent>
-                        {walkAreas.map((area: string) => (
+                        {walkAreas.filter(Boolean).map((area: string) => (
                           <SelectItem key={area} value={area} className="text-base py-3">
                             {area}
                           </SelectItem>
@@ -489,8 +490,8 @@ export default function FindingsTab() {
                         No hay categorías disponibles. Contacta al administrador.
                       </SelectItem>
                     ) : (
-                      categoriesList.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.name} className="text-base py-3" title={cat.includesDescription ?? undefined}>
+                      categoriesList.filter((c) => c.name).map((cat) => (
+                        <SelectItem key={cat.id} value={cat.name!} className="text-base py-3" title={cat.includesDescription ?? undefined}>
                           {cat.name}
                         </SelectItem>
                       ))
@@ -779,7 +780,7 @@ export default function FindingsTab() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todas</SelectItem>
-                        {uniqueCategories.map((cat) => (
+                        {uniqueCategories.filter(Boolean).map((cat) => (
                           <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                         ))}
                       </SelectContent>
@@ -814,7 +815,7 @@ export default function FindingsTab() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todas</SelectItem>
-                        {uniqueAreas.map((area) => (
+                        {uniqueAreas.filter(Boolean).map((area) => (
                           <SelectItem key={area} value={area}>{area}</SelectItem>
                         ))}
                       </SelectContent>
@@ -1718,7 +1719,7 @@ function FindingCard({
                     <SelectValue placeholder="Seleccionar área" />
                   </SelectTrigger>
                   <SelectContent>
-                    {editAreas.map((a, i) => (
+                    {editAreas.filter(Boolean).map((a, i) => (
                       <SelectItem key={i} value={a}>{a}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1744,8 +1745,8 @@ function FindingCard({
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categoriesList.map((c) => (
-                    <SelectItem key={c.id} value={c.name} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
+                  {categoriesList.filter((c) => c.name).map((c) => (
+                    <SelectItem key={c.id} value={c.name!} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

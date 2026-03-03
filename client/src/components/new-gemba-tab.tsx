@@ -1060,7 +1060,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                     <SelectValue placeholder="Seleccionar área" />
                   </SelectTrigger>
                   <SelectContent>
-                    {walkDetails.areas.map((a: string, i: number) => (
+                    {walkDetails.areas.filter(Boolean).map((a: string, i: number) => (
                       <SelectItem key={i} value={a}>{a}</SelectItem>
                     ))}
                   </SelectContent>
@@ -1086,8 +1086,8 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categoriesList.map((c) => (
-                    <SelectItem key={c.id} value={c.name} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
+                  {categoriesList.filter((c) => c.name).map((c) => (
+                    <SelectItem key={c.id} value={c.name!} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

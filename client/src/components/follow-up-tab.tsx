@@ -624,7 +624,7 @@ export default function FollowUpTab() {
                         <SelectValue placeholder="Seleccionar área" />
                       </SelectTrigger>
                       <SelectContent>
-                        {editAreas.map((a, i) => (
+                        {editAreas.filter(Boolean).map((a, i) => (
                           <SelectItem key={i} value={a}>{a}</SelectItem>
                         ))}
                       </SelectContent>
@@ -651,8 +651,8 @@ export default function FollowUpTab() {
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    {(categoriesList || []).map((c) => (
-                      <SelectItem key={c.id} value={c.name} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
+                    {(categoriesList || []).filter((c) => c.name).map((c) => (
+                      <SelectItem key={c.id} value={c.name!} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
