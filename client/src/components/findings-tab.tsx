@@ -1113,6 +1113,8 @@ function FindingCard({
   const isAdmin = user?.role === "admin";
   const [walk] = walks.filter(w => w.id === finding.gembaWalkId);
   const isCreator = walk?.createdBy === user?.id;
+  /** Quién puede cambiar estatus/cerrar: responsable, creador del walk o admin (backend solo permite a estos). */
+  const canUpdateStatus = isResponsible || isCreator || isAdmin;
   const editAreas: string[] = (finding as any).areas && Array.isArray((finding as any).areas) ? (finding as any).areas : (walk?.area ? [walk.area] : []);
 
   const handleImageClick = (imageUrl: string) => {
@@ -1432,6 +1434,7 @@ function FindingCard({
               </DialogContent>
             </Dialog>
           )}
+          {canUpdateStatus && (
           <Dialog open={closeOpen} onOpenChange={(open) => {
             setCloseOpen(open);
             if (!open) {
@@ -1452,25 +1455,12 @@ function FindingCard({
             <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
-                  {isResponsible && finding.status !== "closed" ? "Cerrar hallazgo" : "Actualizar hallazgo"}
+                  {isResponsible && finding.status !== "closed" ? "Cerrar hallazgo" : "Actualizar estatus"}
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4 pt-2">
-                {!isResponsible && (
-                  <div className="space-y-2">
-                    <Label>Nuevo estatus</Label>
-                    <Select value={newStatus} onValueChange={setNewStatus}>
-                      <SelectTrigger className="text-base">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="open" className="text-base py-3">Abierto</SelectItem>
-                        <SelectItem value="closed" className="text-base py-3">Cerrado</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                {(newStatus === "closed" || (isResponsible && finding.status !== "closed")) && (
+                {/* Solo responsable al cerrar: formulario completo (comentario + evidencia). Admin/creador: solo cambio de estatus. */}
+                {isResponsible && finding.status !== "closed" ? (
                   <>
                     <div className="space-y-2">
                       <Label>Comentario de cierre (opcional)</Label>
@@ -1516,6 +1506,19 @@ function FindingCard({
                       )}
                     </div>
                   </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Nuevo estatus</Label>
+                    <Select value={newStatus} onValueChange={setNewStatus}>
+                      <SelectTrigger className="text-base">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="open" className="text-base py-3">Abierto</SelectItem>
+                        <SelectItem value="closed" className="text-base py-3">Cerrado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 )}
                 <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
                   <Button
@@ -1534,18 +1537,18 @@ function FindingCard({
                     className="w-full sm:w-auto min-h-[44px] sm:min-h-[36px] text-base touch-manipulation"
                     onClick={() => {
                       if (isResponsible && finding.status !== "closed") {
-                        // Responsible closing the finding
+                        // Responsable: cierre con comentario y evidencia
                         updateMutation.mutate({
                           status: "closed",
                           closeComment: closeComment || undefined,
                           closeEvidenceFile: closeEvidenceFile,
                         });
                       } else {
-                        // Creator updating status
+                        // Admin/creador: solo cambio de estatus (sin comentario ni fotos)
                         updateMutation.mutate({
                           status: newStatus,
-                          closeComment: newStatus === "closed" ? closeComment : undefined,
-                          closeEvidenceFile: newStatus === "closed" ? closeEvidenceFile : null,
+                          closeComment: undefined,
+                          closeEvidenceFile: null,
                         });
                       }
                     }}
@@ -1561,6 +1564,7 @@ function FindingCard({
               </div>
             </DialogContent>
           </Dialog>
+          )}
 
           {/* Image Modal */}
           <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
