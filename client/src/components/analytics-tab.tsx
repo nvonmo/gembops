@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Clock, CheckCircle2, AlertCircle, Target, Users, MapPin, Tag } from "lucide-react";
+import { TrendingUp, Clock, CheckCircle2, AlertCircle, Target, Users, MapPin, Tag, CalendarX2 } from "lucide-react";
 
 interface AnalyticsData {
   findingsByMonth: { month: string; open: number; closed: number }[];
@@ -13,6 +13,7 @@ interface AnalyticsData {
     openFindings: number;
     closedFindings: number;
     overdueCount: number;
+    pendingDueDateCount: number;
     closureRate: number;
     avgResolutionDays: number;
     complianceRate: number;
@@ -63,7 +64,7 @@ export default function AnalyticsTab() {
   return (
     <div className="space-y-6">
       {/* Métricas principales */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -108,6 +109,20 @@ export default function AnalyticsTab() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Pendientes de definir fecha</p>
+                <p className="text-2xl font-bold text-amber-600">{metrics.pendingDueDateCount ?? 0}</p>
+              </div>
+              <CalendarX2 className="h-8 w-8 text-amber-600 opacity-50" />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sin fecha compromiso
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Métricas de rendimiento */}
@@ -150,7 +165,7 @@ export default function AnalyticsTab() {
               <Target className="h-5 w-5 text-green-600" />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Cerrados a tiempo
+              Cerrados en o antes de la fecha compromiso (solo con fecha definida)
             </p>
           </CardContent>
         </Card>

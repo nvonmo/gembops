@@ -23,6 +23,12 @@ function formatDateMexico(d: Date): string {
   return d.toLocaleDateString("es-MX", { timeZone: MEXICO_TZ });
 }
 
+/** YYYY-MM-DD in Mexico timezone for date-only comparison. */
+function getDateMexicoYYYYMMDD(d: Date): string {
+  const s = d.toLocaleString("en-CA", { timeZone: MEXICO_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
+  return s; // en-CA gives YYYY-MM-DD
+}
+
 /** True if due date (YYYY-MM-DD) is before today by calendar day (UTC). Avoids timezone bugs. */
 function isOverdueByDateOnly(dueDate: string | null | undefined): boolean {
   if (!dueDate) return false;
@@ -654,15 +660,20 @@ export async function registerRoutes(
       const closedCount = allFindings.filter(f => f.status === "closed").length;
       const closureRate = totalFindings > 0 ? (closedCount / totalFindings) * 100 : 0;
       
-      // 6. Cumplimiento (cerrados a tiempo)
-      const closedOnTime = allFindings.filter(f => {
-        if (f.status !== "closed" || !f.dueDate) return false;
-        const closedDate = f.closeComment ? new Date(f.createdAt) : new Date(); // Approximate
-        return new Date(f.dueDate) >= closedDate;
+      // 6. Cumplimiento (cerrados en o antes de la fecha compromiso; solo se consideran los que tienen fecha compromiso)
+      const closedWithDueDate = allFindings.filter(f => f.status === "closed" && f.dueDate);
+      const closedOnTime = closedWithDueDate.filter(f => {
+        const closeDate = f.closedAt ? new Date(f.closedAt) : (f.createdAt ? new Date(f.createdAt) : null);
+        if (!closeDate) return false;
+        const closeStr = getDateMexicoYYYYMMDD(closeDate);
+        return closeStr <= f.dueDate!.slice(0, 10);
       }).length;
-      const complianceRate = closedCount > 0 ? (closedOnTime / closedCount) * 100 : 0;
+      const complianceRate = closedWithDueDate.length > 0 ? (closedOnTime / closedWithDueDate.length) * 100 : 0;
       
-      // 7. Hallazgos vencidos
+      // 7. Hallazgos abiertos sin fecha compromiso (pendientes de definir)
+      const pendingDueDateCount = allFindings.filter(f => f.status !== "closed" && !f.dueDate).length;
+      
+      // 8. Hallazgos vencidos
       const overdueCount = allFindings.filter(f => {
         return f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate);
       }).length;
@@ -689,6 +700,7 @@ export async function registerRoutes(
           openFindings: totalFindings - closedCount,
           closedFindings: closedCount,
           overdueCount,
+          pendingDueDateCount,
           closureRate: Math.round(closureRate * 10) / 10,
           avgResolutionDays: Math.round(avgResolutionDays * 10) / 10,
           complianceRate: Math.round(complianceRate * 10) / 10,
