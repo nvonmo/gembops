@@ -55,11 +55,13 @@ export function NotificationsDropdown() {
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
     refetchInterval: 30000, // Refetch every 30 seconds
+    refetchOnWindowFocus: true, // Update when user returns to tab (e.g. after admin deletes a walk)
   });
 
   const { data: pendingCount = { count: 0 } } = useQuery<{ count: number }>({
     queryKey: ["/api/notifications/pending-count"],
     refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
 
   const { data: findingDetail, isLoading: findingDetailLoading } = useQuery<FindingDetail>({

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth";
 import type { GembaWalk, Area, Finding } from "@shared/schema";
 import { format, parseISO, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Calendar as CalendarIcon, Trash2, Users, UserCheck, X, List, CalendarDays, Eye, AlertCircle, CheckCircle2, Clock, Tag, User, Repeat, CheckCheck } from "lucide-react";
+import { MapPin, Calendar as CalendarIcon, Trash2, Users, UserCheck, X, List, CalendarDays, Eye, AlertCircle, CheckCircle2, Clock, Tag, User, Repeat, CheckCheck, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -128,6 +129,8 @@ export default function NewGembaTab({ userId }: { userId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks"] });
       queryClient.invalidateQueries({ queryKey: ["/api/findings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/pending-count"] });
       toast({ title: "Gemba eliminado" });
     },
     onError: (error: Error) => {
@@ -669,9 +672,18 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [findingToEdit, setFindingToEdit] = useState<(Finding & { responsibleUser?: any }) | null>(null);
+  const [editDescription, setEditDescription] = useState("");
+  const [editArea, setEditArea] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editPhotoFiles, setEditPhotoFiles] = useState<File[]>([]);
   const { data: walkDetails, isLoading } = useQuery<any>({
     queryKey: ["/api/gemba-walks", walkId],
     enabled: !!walkId && open,
+  });
+  const { data: categoriesList = [] } = useQuery<Array<{ id: number; name: string }>>({
+    queryKey: ["/api/categories"],
+    enabled: !!findingToEdit,
   });
   const confirmParticipantMutation = useMutation({
     mutationFn: async (participantUserId: string) => {
@@ -696,6 +708,44 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
+  const editFindingMutation = useMutation({
+    mutationFn: async () => {
+      if (!findingToEdit) return;
+      const formData = new FormData();
+      formData.append("description", editDescription);
+      formData.append("area", editArea);
+      formData.append("category", editCategory);
+      editPhotoFiles.forEach((file) => formData.append("photos", file));
+      const res = await fetch(`/api/findings/${findingToEdit.id}`, {
+        method: "PATCH",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Error al actualizar hallazgo");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks", walkId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/findings"] });
+      setFindingToEdit(null);
+      setEditPhotoFiles([]);
+      toast({ title: "Hallazgo actualizado" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+  const openEditFinding = (finding: Finding & { responsibleUser?: any }) => {
+    setFindingToEdit(finding);
+    setEditDescription(finding.description);
+    setEditArea(finding.area || "");
+    setEditCategory(finding.category);
+    setEditPhotoFiles([]);
+  };
   const isLeader = walkDetails?.leader?.id === user?.id;
   const today = new Date();
   const todayStr = format(today, "yyyy-MM-dd");
@@ -706,6 +756,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
   if (!walkId) return null;
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -905,6 +956,18 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                               <p className="text-sm font-medium leading-relaxed">{finding.description}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
+                              {isLeader && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs gap-1"
+                                  onClick={() => openEditFinding(finding)}
+                                  title="Editar hallazgo"
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                  Editar
+                                </Button>
+                              )}
                               <Badge variant={finding.status === "closed" ? "secondary" : "destructive"} className="text-xs">
                                 {finding.status === "closed" ? "Cerrado" : "Abierto"}
                               </Badge>
@@ -953,5 +1016,81 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
         ) : null}
       </DialogContent>
     </Dialog>
+
+    {/* Edit finding dialog (leader only) */}
+    <Dialog open={!!findingToEdit} onOpenChange={(open) => !open && setFindingToEdit(null)}>
+      <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Editar hallazgo</DialogTitle>
+        </DialogHeader>
+        {findingToEdit && (
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Descripción</Label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+                maxLength={200}
+                className="resize-none"
+              />
+            </div>
+            {walkDetails?.areas?.length > 0 && (
+              <div className="space-y-2">
+                <Label>Área</Label>
+                <Select value={editArea} onValueChange={setEditArea}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar área" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {walkDetails.areas.map((a: string, i: number) => (
+                      <SelectItem key={i} value={a}>{a}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Categoría</Label>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoriesList.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Fotos o videos (opcional, reemplazan las actuales)</Label>
+              <Input
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                onChange={(e) => setEditPhotoFiles(e.target.files ? Array.from(e.target.files) : [])}
+              />
+              {editPhotoFiles.length > 0 && (
+                <p className="text-xs text-muted-foreground">{editPhotoFiles.length} archivo(s) seleccionado(s)</p>
+              )}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" onClick={() => setFindingToEdit(null)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={!editDescription.trim() || !editCategory || editFindingMutation.isPending}
+                onClick={() => editFindingMutation.mutate()}
+              >
+                {editFindingMutation.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

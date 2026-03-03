@@ -1,19 +1,71 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { LogOut, ListChecks, AlertTriangle, Settings, Users, BarChart3, Calendar, Tag } from "lucide-react";
+import { LogOut, ListChecks, AlertTriangle, Settings, Users, BarChart3, Calendar, Tag, KeyRound } from "lucide-react";
 import NewGembaTab from "@/components/new-gemba-tab";
 import FindingsTab from "@/components/findings-tab";
 import FollowUpTab from "@/components/follow-up-tab";
 import AnalyticsTab from "@/components/analytics-tab";
 import AdminAreasTab from "@/components/admin-areas-tab";
 import AdminUsersTab from "@/components/admin-users-tab";
+import AdminDepartmentsTab from "@/components/admin-departments-tab";
 import AdminCategoriesTab from "@/components/admin-categories-tab";
 import { NotificationsDropdown } from "@/components/notifications-dropdown";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/auth-utils";
 
 export default function Dashboard() {
   const { user, logout } = useAuth();
+  const { toast } = useToast();
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+
+  const handleChangePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({ title: "Error", description: "Completa todos los campos", variant: "destructive" });
+      return;
+    }
+    if (newPassword.length < 4) {
+      toast({ title: "Error", description: "La contraseña nueva debe tener al menos 4 caracteres", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Error", description: "La confirmación no coincide", variant: "destructive" });
+      return;
+    }
+    try {
+      setIsChangingPassword(true);
+      const res = await apiRequest("POST", "/api/users/change-password", {
+        currentPassword,
+        newPassword,
+      });
+      // Leer la respuesta para forzar errores si los hay
+      await res.json().catch(() => ({}));
+      setPasswordDialogOpen(false);
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      toast({ title: "Contraseña actualizada" });
+    } catch (error: any) {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Sesión expirada", description: "Iniciando sesión...", variant: "destructive" });
+        setTimeout(() => (window.location.href = "/api/login"), 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message || "No se pudo actualizar la contraseña", variant: "destructive" });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -42,6 +94,16 @@ export default function Dashboard() {
             <span className="text-sm hidden sm:inline font-medium" data-testid="text-username">
               {user.firstName || user.username}
             </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setPasswordDialogOpen(true)}
+              className="text-primary-foreground hover:bg-primary-foreground/15 hover:text-primary-foreground"
+              title="Cambiar contraseña"
+              data-testid="button-change-password"
+            >
+              <KeyRound className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -107,7 +169,7 @@ export default function Dashboard() {
           {user.role === "admin" && (
             <TabsContent value="admin">
               <Tabs defaultValue="areas" className="space-y-4">
-                <TabsList className="w-full grid grid-cols-3">
+                <TabsList className="w-full grid grid-cols-4">
                   <TabsTrigger value="areas" className="gap-1.5 text-xs sm:text-sm py-2.5">
                     <Settings className="h-4 w-4 shrink-0" />
                     <span>Areas</span>
@@ -115,6 +177,10 @@ export default function Dashboard() {
                   <TabsTrigger value="categories" className="gap-1.5 text-xs sm:text-sm py-2.5">
                     <Tag className="h-4 w-4 shrink-0" />
                     <span>Categorías</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="departments" className="gap-1.5 text-xs sm:text-sm py-2.5">
+                    <Users className="h-4 w-4 shrink-0" />
+                    <span>Departamentos</span>
                   </TabsTrigger>
                   <TabsTrigger value="users" className="gap-1.5 text-xs sm:text-sm py-2.5">
                     <Users className="h-4 w-4 shrink-0" />
@@ -127,6 +193,9 @@ export default function Dashboard() {
                 <TabsContent value="categories">
                   <AdminCategoriesTab />
                 </TabsContent>
+                <TabsContent value="departments">
+                  <AdminDepartmentsTab />
+                </TabsContent>
                 <TabsContent value="users">
                   <AdminUsersTab />
                 </TabsContent>
@@ -135,6 +204,70 @@ export default function Dashboard() {
           )}
         </Tabs>
       </main>
+
+      <Dialog open={passwordDialogOpen} onOpenChange={(open) => {
+        setPasswordDialogOpen(open);
+        if (!open) {
+          setCurrentPassword("");
+          setNewPassword("");
+          setConfirmPassword("");
+        }
+      }}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cambiar contraseña</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Contraseña actual</Label>
+              <Input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                autoComplete="current-password"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Nueva contraseña</Label>
+              <Input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-muted-foreground">Mínimo 4 caracteres.</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Confirmar nueva contraseña</Label>
+              <Input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPasswordDialogOpen(false);
+                }}
+                disabled={isChangingPassword}
+                className="w-full sm:w-auto"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                className="w-full sm:w-auto"
+              >
+                {isChangingPassword ? "Guardando..." : "Guardar contraseña"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

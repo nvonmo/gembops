@@ -18,6 +18,7 @@ interface User {
   email: string | null;
   firstName: string | null;
   lastName: string | null;
+  departmentId?: number | null;
   role: string;
   createdAt: string;
   updatedAt: string;
@@ -34,12 +35,23 @@ export default function AdminUsersTab() {
     lastName: "",
     email: "",
     role: "user",
+    departmentId: "",
   });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<Partial<User>>({});
 
   const { data: usersList = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
+  });
+
+  interface Department {
+    id: number;
+    name: string;
+    isActive: boolean;
+  }
+
+  const { data: departments = [] } = useQuery<Department[]>({
+    queryKey: ["/api/departments"],
   });
 
   const createMutation = useMutation({
@@ -71,7 +83,7 @@ export default function AdminUsersTab() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Partial<User & { password?: string }> }) => {
+    mutationFn: async ({ id, data }: { id: string; data: Partial<User & { password?: string; departmentId?: number | null }> }) => {
       const res = await apiRequest("PATCH", `/api/users/${id}`, data);
       return res.json();
     },
@@ -131,6 +143,7 @@ export default function AdminUsersTab() {
       lastName: user.lastName || "",
       email: user.email || "",
       role: user.role,
+      departmentId: user.departmentId ?? null,
     });
   };
 
@@ -142,6 +155,10 @@ export default function AdminUsersTab() {
       lastName: editingUser.lastName || null,
       email: editingUser.email || null,
       role: editingUser.role,
+      departmentId:
+        (editingUser as any).departmentId === "" || (editingUser as any).departmentId == null
+          ? null
+          : Number((editingUser as any).departmentId),
     };
     updateMutation.mutate({ id: editingId, data: updateData });
   };
@@ -217,6 +234,48 @@ export default function AdminUsersTab() {
                     placeholder="Apellido"
                     className="text-base"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Departamento</Label>
+                  <Select
+                    value={newUser.departmentId}
+                    onValueChange={(value) => setNewUser({ ...newUser, departmentId: value })}
+                  >
+                    <SelectTrigger className="text-base">
+                      <SelectValue placeholder="Sin departamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin departamento</SelectItem>
+                      {departments
+                        .filter((d) => d.isActive)
+                        .map((d) => (
+                          <SelectItem key={d.id} value={String(d.id)}>
+                            {d.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Departamento</Label>
+                  <Select
+                    value={newUser.departmentId}
+                    onValueChange={(value) => setNewUser({ ...newUser, departmentId: value })}
+                  >
+                    <SelectTrigger className="text-base">
+                      <SelectValue placeholder="Sin departamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Sin departamento</SelectItem>
+                      {departments
+                        .filter((d) => d.isActive)
+                        .map((d) => (
+                          <SelectItem key={d.id} value={String(d.id)}>
+                            {d.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label>Email</Label>

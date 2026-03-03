@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import { db } from "./db";
-import { areas, categories, notifications, gembaWalks, gembaWalkAreas, gembaWalkParticipants, findings, type Finding } from "@shared/schema";
+import { areas, categories, departments, notifications, gembaWalks, gembaWalkAreas, gembaWalkParticipants, findings, type Finding } from "@shared/schema";
 import { users } from "@shared/models/auth";
 import { eq, desc, inArray, and, or, like, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
@@ -494,6 +494,12 @@ export async function registerRoutes(
   app.delete("/api/gemba-walks/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
+      // Remove notifications that reference findings of this walk (so responsible users' badge updates)
+      const walkFindings = await db.select({ id: findings.id }).from(findings).where(eq(findings.gembaWalkId, id));
+      const findingIds = walkFindings.map((f) => f.id);
+      if (findingIds.length > 0) {
+        await db.delete(notifications).where(inArray(notifications.relatedFindingId, findingIds));
+      }
       // Delete related data first (cascade should handle it, but being explicit)
       await db.delete(gembaWalkAreas).where(eq(gembaWalkAreas.gembaWalkId, id));
       await db.delete(gembaWalkParticipants).where(eq(gembaWalkParticipants.gembaWalkId, id));
@@ -509,10 +515,9 @@ export async function registerRoutes(
     try {
       const userId = req.session.userId;
       console.log("[Analytics] userId:", userId);
-      
-      // Get all findings (created by user or where user is responsible)
-      const findingsFromCreatedWalks = await storage.getFindingsByUser(userId);
-      const findingsAsResponsible = await db
+
+      // All authenticated users see the same statistics: use all findings (no filter by walk/participant/leader)
+      const allFindings = await db
         .select({
           id: findings.id,
           gembaWalkId: findings.gembaWalkId,
@@ -527,13 +532,7 @@ export async function registerRoutes(
           createdAt: findings.createdAt,
         })
         .from(findings)
-        .where(eq(findings.responsibleId, userId))
         .orderBy(desc(findings.createdAt));
-      
-      const allFindingsMap = new Map<number, Finding>();
-      findingsFromCreatedWalks.forEach(f => allFindingsMap.set(f.id, f));
-      findingsAsResponsible.forEach(f => allFindingsMap.set(f.id, f));
-      const allFindings = Array.from(allFindingsMap.values());
       
       // Get all Gemba Walks referenced (optimized: only select needed fields)
       const walkIds = [...new Set(allFindings.map(f => f.gembaWalkId))];
@@ -614,13 +613,14 @@ export async function registerRoutes(
         }
       });
       
-      // 4. Top responsables
+      // 4. Top responsables (solo hallazgos con responsable asignado; los que solo tienen departamento no entran aquí)
       const findingsByResponsible = new Map<string, number>();
       allFindings.forEach(f => {
+        if (!f.responsibleId) return;
         const user = userMap.get(f.responsibleId);
-        const name = user 
+        const name = user
           ? [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username
-          : f.responsibleId;
+          : "Sin asignar";
         findingsByResponsible.set(name, (findingsByResponsible.get(name) || 0) + 1);
       });
       
@@ -725,6 +725,7 @@ export async function registerRoutes(
           category: findings.category,
           description: findings.description,
           responsibleId: findings.responsibleId,
+          departmentId: findings.departmentId,
           dueDate: findings.dueDate,
           status: findings.status,
           photoUrl: findings.photoUrl,
@@ -779,7 +780,13 @@ export async function registerRoutes(
         }).from(users).where(inArray(users.id, responsibleIds))
         : [];
       const userMap = new Map(responsibleUsers.map(u => [u.id, u]));
-      
+      // Get departments for findings with departmentId
+      const departmentIds = [...new Set(allFindings.map((f: any) => f.departmentId).filter(Boolean))] as number[];
+      const departmentRows = departmentIds.length > 0
+        ? await db.select().from(departments).where(inArray(departments.id, departmentIds))
+        : [];
+      const departmentMap = new Map(departmentRows.map((d) => [d.id, d]));
+
       // Apply filters
       if (status) {
         allFindings = allFindings.filter(f => f.status === status);
@@ -863,8 +870,9 @@ export async function registerRoutes(
         }
       });
       
-      // Add responsible user info and areas to findings; resolve S3 URLs for photos
+      // Add responsible user info, areas, department info and walkLeaderId to findings; resolve S3 URLs for photos
       const findingsWithUsers = allFindings.map((f: any) => {
+        const walk = walkMap.get(f.gembaWalkId);
         const photoUrlsRaw = f.photoUrls ? (typeof f.photoUrls === "string" ? JSON.parse(f.photoUrls) : f.photoUrls) : [];
         const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : [];
         const firstPhoto = photoUrlsResolved.length > 0 ? photoUrlsResolved[0] : resolvePhotoUrl(f.photoUrl);
@@ -875,6 +883,8 @@ export async function registerRoutes(
           closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
           responsibleUser: userMap.get(f.responsibleId) || null,
           areas: getAllAreasForWalk(f.gembaWalkId),
+          departmentName: f.departmentId ? departmentMap.get(f.departmentId)?.name ?? null : null,
+          walkLeaderId: walk?.leaderId ?? null,
         };
       });
       
@@ -995,11 +1005,11 @@ export async function registerRoutes(
 
   app.post("/api/findings", isAuthenticated, uploadMemory.array("photos", 10), async (req: any, res) => {
     try {
-      const { gembaWalkId, area, category, description, responsibleId, status } = req.body;
+      const { gembaWalkId, area, category, description, responsibleId, status, departmentId } = req.body;
       const userId = req.session.userId;
       
-      if (!gembaWalkId || !category || !description || !responsibleId) {
-        return res.status(400).json({ message: "Gemba Walk, categoría, descripción y responsable son requeridos" });
+      if (!gembaWalkId || !category || !description) {
+        return res.status(400).json({ message: "Gemba Walk, categoría y descripción son requeridos" });
       }
       
       // Get the Gemba Walk and verify user is the leader
@@ -1025,10 +1035,26 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Solo puedes registrar hallazgos en recorridos de hoy o de los últimos 5 días" });
       }
       
-      // Verify responsible user exists
-      const [responsibleUser] = await db.select().from(users).where(eq(users.id, responsibleId));
-      if (!responsibleUser) {
-        return res.status(400).json({ message: "Usuario responsable no encontrado" });
+      const hasResponsible = !!responsibleId;
+      const departmentIdNum = departmentId ? parseInt(String(departmentId), 10) : null;
+      if (!hasResponsible && !departmentIdNum) {
+        return res.status(400).json({ message: "Debes asignar un responsable o un departamento" });
+      }
+
+      let responsibleUser = null;
+      if (hasResponsible) {
+        const [userRow] = await db.select().from(users).where(eq(users.id, responsibleId));
+        if (!userRow) {
+          return res.status(400).json({ message: "Usuario responsable no encontrado" });
+        }
+        responsibleUser = userRow;
+      }
+
+      if (departmentIdNum) {
+        const [dept] = await db.select().from(departments).where(eq(departments.id, departmentIdNum));
+        if (!dept) {
+          return res.status(400).json({ message: "Departamento no encontrado" });
+        }
       }
 
       const files = (req.files || []) as Express.Multer.File[];
@@ -1062,7 +1088,8 @@ export async function registerRoutes(
         area: area || null,
         category,
         description,
-        responsibleId,
+        responsibleId: hasResponsible ? responsibleId : null,
+        departmentId: departmentIdNum,
         dueDate: null,
         status: status || "open",
         photoUrl,
@@ -1071,16 +1098,18 @@ export async function registerRoutes(
 
       const walkArea = walk?.area || "desconocida";
 
-      // Create notification for the responsible user
-      await db.insert(notifications).values({
-        userId: responsibleId,
-        type: "finding_assigned",
-        title: "Nuevo hallazgo asignado",
-        message: `Se te ha asignado un nuevo hallazgo en el área ${walkArea}. Categoría: ${category}. Por favor establece la fecha de compromiso.`,
-        relatedFindingId: finding.id,
-        isActionRequired: true,
-        isActionCompleted: false,
-      });
+      // Create notification for the responsible user (if any)
+      if (hasResponsible && responsibleUser) {
+        await db.insert(notifications).values({
+          userId: responsibleId,
+          type: "finding_assigned",
+          title: "Nuevo hallazgo asignado",
+          message: `Se te ha asignado un nuevo hallazgo en el área ${walkArea}. Categoría: ${category}. Por favor establece la fecha de compromiso.`,
+          relatedFindingId: finding.id,
+          isActionRequired: true,
+          isActionCompleted: false,
+        });
+      }
 
       const photoUrlsParsed = finding.photoUrls ? (typeof finding.photoUrls === "string" ? JSON.parse(finding.photoUrls) : finding.photoUrls) : [];
       res.json({
@@ -1095,10 +1124,15 @@ export async function registerRoutes(
     }
   });
 
-  app.patch("/api/findings/:id", isAuthenticated, upload.single("closeEvidence"), async (req: any, res) => {
+  const uploadFindingPatch = uploadMemory.fields([
+    { name: "closeEvidence", maxCount: 1 },
+    { name: "photos", maxCount: 10 },
+  ]);
+
+  app.patch("/api/findings/:id", isAuthenticated, uploadFindingPatch, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { status, closeComment, dueDate } = req.body;
+      const { status, closeComment, dueDate, description, area, category } = req.body;
       
       // Get the finding to verify permissions
       const [finding] = await db.select().from(findings).where(eq(findings.id, id));
@@ -1106,60 +1140,107 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Hallazgo no encontrado" });
       }
 
-      // Verify user can update this finding (must be the responsible user or the creator)
       const userId = req.session.userId;
       const [walk] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, finding.gembaWalkId));
+      const isLeader = walk?.leaderId === userId;
       const isResponsible = finding.responsibleId === userId;
       const isCreator = walk?.createdBy === userId;
-      const canUpdate = isResponsible || isCreator;
+      const canUpdate = isLeader || isResponsible || isCreator;
       
       if (!canUpdate) {
         return res.status(403).json({ message: "No tienes permisos para actualizar este hallazgo" });
       }
 
       const updateData: any = {};
-      
-      // Status updates
-      if (status) {
-        // Only responsible user can close the finding
-        if (status === "closed" && !isResponsible) {
-          return res.status(403).json({ message: "Solo el responsable puede cerrar el hallazgo" });
+
+      // Leader can edit description, area, category, and photos (fix mistakes)
+      if (isLeader) {
+        if (description !== undefined) updateData.description = description;
+        if (area !== undefined) updateData.area = area || null;
+        if (category !== undefined) updateData.category = category;
+        const photoFiles = (req.files?.photos as Express.Multer.File[]) || [];
+        if (photoFiles.length > 0) {
+          const photoUrls: string[] = [];
+          for (const file of photoFiles) {
+            let buffer = (file as any).buffer as Buffer;
+            let ext = path.extname(file.originalname).toLowerCase();
+            let contentType = file.mimetype;
+            if (buffer && isMovFile(file.originalname, file.mimetype)) {
+              const converted = await convertMovToMp4(buffer);
+              if (converted) {
+                buffer = converted;
+                ext = ".mp4";
+                contentType = "video/mp4";
+              }
+            }
+            if (isS3Configured()) {
+              const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+              const url = await uploadToS3(key, buffer, contentType);
+              photoUrls.push(resolvePhotoUrl(url));
+            } else {
+              const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+              const destPath = path.join(uploadDir, filename);
+              await fs.promises.writeFile(destPath, buffer);
+              photoUrls.push(`/uploads/${filename}`);
+            }
+          }
+          updateData.photoUrl = photoUrls[0] ?? null;
+          updateData.photoUrls = photoUrls.length > 0 ? JSON.stringify(photoUrls) : null;
         }
-        updateData.status = status;
       }
       
-      if (closeComment !== undefined) updateData.closeComment = closeComment;
-      
-      // Close evidence photo (only when closing)
-      if (req.file && status === "closed") {
-        updateData.closeEvidenceUrl = isS3Configured() && (req.file as any).location
-          ? (req.file as any).location
-          : `/uploads/${req.file.filename}`;
-      }
-      
-      if (dueDate !== undefined) {
-        // Only responsible user can set due date
-        if (!isResponsible) {
-          return res.status(403).json({ message: "Solo el responsable puede establecer la fecha de compromiso" });
+      // Responsible/creator: status, closeComment, dueDate, closeEvidence
+      if (isResponsible || isCreator) {
+        if (status) {
+          if (status === "closed" && !isResponsible) {
+            return res.status(403).json({ message: "Solo el responsable puede cerrar el hallazgo" });
+          }
+          updateData.status = status;
         }
-        updateData.dueDate = dueDate || null;
-        
-        // If setting due date for first time, mark notification action as completed
-        if (!finding.dueDate && dueDate) {
+        if (closeComment !== undefined) updateData.closeComment = closeComment;
+        const closeEvidenceFiles = (req.files?.closeEvidence as Express.Multer.File[]) || [];
+        const closeFile = closeEvidenceFiles[0];
+        if (closeFile && status === "closed") {
+          let buffer = (closeFile as any).buffer as Buffer;
+          let ext = path.extname(closeFile.originalname).toLowerCase();
+          let contentType = closeFile.mimetype;
+          if (buffer && isMovFile(closeFile.originalname, closeFile.mimetype)) {
+            const converted = await convertMovToMp4(buffer);
+            if (converted) {
+              buffer = converted;
+              ext = ".mp4";
+              contentType = "video/mp4";
+            }
+          }
+          if (isS3Configured()) {
+            const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+            const url = await uploadToS3(key, buffer, contentType);
+            updateData.closeEvidenceUrl = resolvePhotoUrl(url);
+          } else {
+            const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+            const destPath = path.join(uploadDir, filename);
+            await fs.promises.writeFile(destPath, buffer);
+            updateData.closeEvidenceUrl = `/uploads/${filename}`;
+          }
+        }
+        if (dueDate !== undefined) {
+          if (!isResponsible) {
+            return res.status(403).json({ message: "Solo el responsable puede establecer la fecha de compromiso" });
+          }
+          updateData.dueDate = dueDate || null;
+          if (!finding.dueDate && dueDate) {
+            await db
+              .update(notifications)
+              .set({ isActionCompleted: true })
+              .where(and(eq(notifications.relatedFindingId, id), eq(notifications.type, "finding_assigned")));
+          }
+        }
+        if (status === "closed" && finding.status !== "closed") {
           await db
             .update(notifications)
             .set({ isActionCompleted: true })
-            .where(eq(notifications.relatedFindingId, id))
-            .where(eq(notifications.type, "finding_assigned"));
+            .where(eq(notifications.relatedFindingId, id));
         }
-      }
-      
-      // If closing, mark related notifications as completed
-      if (status === "closed" && finding.status !== "closed") {
-        await db
-          .update(notifications)
-          .set({ isActionCompleted: true })
-          .where(eq(notifications.relatedFindingId, id));
       }
       
       const updatedFinding = await storage.updateFinding(id, updateData);
@@ -1549,6 +1630,107 @@ export async function registerRoutes(
     }
   });
 
+  // Departments endpoints
+  app.get("/api/departments", isAuthenticated, async (req: any, res) => {
+    try {
+      const [user] = await db.select().from(users).where(eq(users.id, req.session.userId));
+      const isAdminUser = user?.role === "admin";
+
+      if (isAdminUser) {
+        const allDepartments = await db.select().from(departments).orderBy(departments.name);
+        res.json(allDepartments);
+      } else {
+        const activeDepartments = await db
+          .select()
+          .from(departments)
+          .where(eq(departments.isActive, true))
+          .orderBy(departments.name);
+        res.json(activeDepartments);
+      }
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      res.status(500).json({ message: "Error al obtener departamentos" });
+    }
+  });
+
+  app.post("/api/departments", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const { name } = req.body;
+      if (!name || typeof name !== "string" || name.trim().length === 0) {
+        return res.status(400).json({ message: "El nombre del departamento es requerido" });
+      }
+      const trimmedName = name.trim();
+      const [existing] = await db.select().from(departments).where(eq(departments.name, trimmedName));
+      if (existing) {
+        return res.status(400).json({ message: "Ese departamento ya existe" });
+      }
+      const [newDept] = await db.insert(departments).values({ name: trimmedName }).returning();
+      res.json(newDept);
+    } catch (error: any) {
+      console.error("Error creating department:", error);
+      if (error.code === "23505" || error.message?.includes("unique")) {
+        return res.status(400).json({ message: "Ese departamento ya existe" });
+      }
+      res.status(500).json({ message: "Error al crear departamento: " + (error.message || "Error desconocido") });
+    }
+  });
+
+  app.patch("/api/departments/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { name, isActive } = req.body;
+      const updateData: any = {};
+      if (name !== undefined) {
+        if (typeof name !== "string" || name.trim().length === 0) {
+          return res.status(400).json({ message: "El nombre del departamento es requerido" });
+        }
+        const trimmedName = name.trim();
+        const [existing] = await db.select().from(departments).where(eq(departments.name, trimmedName));
+        if (existing && existing.id !== id) {
+          return res.status(400).json({ message: "Ese departamento ya existe" });
+        }
+        updateData.name = trimmedName;
+      }
+      if (isActive !== undefined) {
+        updateData.isActive = Boolean(isActive);
+      }
+      if (Object.keys(updateData).length === 0) {
+        return res.status(400).json({ message: "No hay datos para actualizar" });
+      }
+      updateData.updatedAt = new Date();
+      const [updatedDept] = await db
+        .update(departments)
+        .set(updateData)
+        .where(eq(departments.id, id))
+        .returning();
+      if (!updatedDept) {
+        return res.status(404).json({ message: "Departamento no encontrado" });
+      }
+      res.json(updatedDept);
+    } catch (error) {
+      console.error("Error updating department:", error);
+      res.status(500).json({ message: "Error al actualizar departamento" });
+    }
+  });
+
+  app.delete("/api/departments/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const [deletedDept] = await db
+        .update(departments)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(eq(departments.id, id))
+        .returning();
+      if (!deletedDept) {
+        return res.status(404).json({ message: "Departamento no encontrado" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting department:", error);
+      res.status(500).json({ message: "Error al eliminar departamento" });
+    }
+  });
+
   // Categories endpoints
   app.get("/api/categories", isAuthenticated, async (req: any, res) => {
     try {
@@ -1689,7 +1871,7 @@ export async function registerRoutes(
 
   app.post("/api/users", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const { username, password, firstName, lastName, email, role } = req.body;
+      const { username, password, firstName, lastName, email, role, departmentId } = req.body;
       
       if (!username || !password) {
         return res.status(400).json({ message: "Usuario y contraseña son requeridos" });
@@ -1709,6 +1891,14 @@ export async function registerRoutes(
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
+      const departmentIdNum = departmentId ? parseInt(String(departmentId), 10) : null;
+      if (departmentIdNum) {
+        const [dept] = await db.select().from(departments).where(eq(departments.id, departmentIdNum));
+        if (!dept) {
+          return res.status(400).json({ message: "Departamento no encontrado" });
+        }
+      }
+
       const [newUser] = await db
         .insert(users)
         .values({
@@ -1718,6 +1908,7 @@ export async function registerRoutes(
           lastName: lastName || null,
           email: email || null,
           role: role || "user",
+          departmentId: departmentIdNum,
         })
         .returning();
 
@@ -1732,7 +1923,7 @@ export async function registerRoutes(
   app.patch("/api/users/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const id = req.params.id;
-      const { username, firstName, lastName, email, role, password } = req.body;
+      const { username, firstName, lastName, email, role, password, departmentId } = req.body;
       
       const [existing] = await db.select().from(users).where(eq(users.id, id));
       if (!existing) {
@@ -1755,6 +1946,16 @@ export async function registerRoutes(
       if (firstName !== undefined) updateData.firstName = firstName || null;
       if (lastName !== undefined) updateData.lastName = lastName || null;
       if (email !== undefined) updateData.email = email || null;
+      if (departmentId !== undefined) {
+        const departmentIdNum = departmentId ? parseInt(String(departmentId), 10) : null;
+        if (departmentIdNum) {
+          const [dept] = await db.select().from(departments).where(eq(departments.id, departmentIdNum));
+          if (!dept) {
+            return res.status(400).json({ message: "Departamento no encontrado" });
+          }
+        }
+        updateData.departmentId = departmentIdNum;
+      }
       if (role !== undefined) {
         if (role !== "admin" && role !== "user") {
           return res.status(400).json({ message: "El rol debe ser 'admin' o 'user'" });
@@ -1784,6 +1985,46 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating user:", error);
       res.status(500).json({ message: "Error al actualizar usuario" });
+    }
+  });
+
+  // Authenticated user changes own password
+  app.post("/api/users/change-password", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const { currentPassword, newPassword } = req.body as {
+        currentPassword?: string;
+        newPassword?: string;
+      };
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "Contraseña actual y nueva son requeridas" });
+      }
+
+      if (newPassword.length < 4) {
+        return res.status(400).json({ message: "La contraseña nueva debe tener al menos 4 caracteres" });
+      }
+
+      const [user] = await db.select().from(users).where(eq(users.id, userId));
+      if (!user) {
+        return res.status(401).json({ message: "No autenticado" });
+      }
+
+      const valid = await bcrypt.compare(currentPassword, user.password);
+      if (!valid) {
+        return res.status(400).json({ message: "La contraseña actual no es correcta" });
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+      await db
+        .update(users)
+        .set({ password: hashedPassword, updatedAt: new Date() })
+        .where(eq(users.id, userId));
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error changing password:", error);
+      res.status(500).json({ message: "Error al actualizar contraseña" });
     }
   });
 

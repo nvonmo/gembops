@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download } from "lucide-react";
+import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
@@ -55,6 +55,7 @@ export default function FindingsTab() {
   const [category, setCategory] = useState("");
   const [description, setDescription] = useState("");
   const [responsibleId, setResponsibleId] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [recognition, setRecognition] = useState<any>(null);
@@ -99,6 +100,11 @@ export default function FindingsTab() {
 
   const { data: usersList = [], isLoading: isLoadingUsers, error: usersError } = useQuery<User[]>({
     queryKey: ["/api/users/list"],
+    retry: 2,
+  });
+
+  const { data: departmentsList = [] } = useQuery<Array<{ id: number; name: string; isActive: boolean }>>({
+    queryKey: ["/api/departments"],
     retry: 2,
   });
 
@@ -329,7 +335,12 @@ export default function FindingsTab() {
       }
       formData.append("category", category);
       formData.append("description", description);
-      formData.append("responsibleId", responsibleId);
+      if (responsibleId) {
+        formData.append("responsibleId", responsibleId);
+      }
+      if (departmentId) {
+        formData.append("departmentId", departmentId);
+      }
       formData.append("status", "open");
       photoFiles.forEach((file) => formData.append("photos", file));
       const res = await fetch("/api/findings", {
@@ -540,6 +551,27 @@ export default function FindingsTab() {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label>Departamento responsable (opcional)</Label>
+                <Select value={departmentId} onValueChange={setDepartmentId}>
+                  <SelectTrigger data-testid="select-department" className="text-base h-11 sm:h-10">
+                    <SelectValue placeholder="Seleccionar departamento (o dejar vacío)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sin departamento</SelectItem>
+                    {departmentsList
+                      .filter((d) => d.isActive)
+                      .map((dept) => (
+                        <SelectItem key={dept.id} value={String(dept.id)} className="text-base py-3">
+                          {dept.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Puedes asignar el hallazgo a un usuario, a un departamento, o a ambos.
+                </p>
+              </div>
+              <div className="space-y-2">
                 <Label>Fotos o videos (opcional, hasta 10)</Label>
                 <Input
                   type="file"
@@ -595,7 +627,14 @@ export default function FindingsTab() {
               </div>
               <Button
                 className="w-full text-base min-h-[44px] sm:min-h-[36px] touch-manipulation"
-                disabled={!selectedWalk || !selectedArea || !category || !description || !responsibleId || createMutation.isPending}
+                disabled={
+                  !selectedWalk ||
+                  !selectedArea ||
+                  !category ||
+                  !description ||
+                  (!responsibleId && !departmentId) ||
+                  createMutation.isPending
+                }
                 onClick={() => {
                   stopRecordingIfActive();
                   createMutation.mutate();
@@ -919,6 +958,7 @@ export default function FindingsTab() {
                   statusInfo={statusInfo}
                   isOverdue={isOverdue}
                   walks={walks}
+                  categoriesList={categoriesList}
                 />
               );
             })}
@@ -1041,12 +1081,14 @@ function FindingCard({
   statusInfo,
   isOverdue,
   walks,
+  categoriesList,
 }: {
-  finding: Finding & { responsibleUser?: User | null };
+  finding: Finding & { responsibleUser?: User | null; walkLeaderId?: string | null; areas?: string[]; departmentName?: string | null };
   walkArea?: string;
   statusInfo: { label: string; variant: "default" | "secondary" | "destructive" };
   isOverdue: boolean;
   walks: GembaWalk[];
+  categoriesList: Array<{ id: number; name: string; isActive?: boolean }>;
 }) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1060,9 +1102,16 @@ function FindingCard({
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editDescription, setEditDescription] = useState(finding.description);
+  const [editArea, setEditArea] = useState((finding as any).area || "");
+  const [editCategory, setEditCategory] = useState(finding.category);
+  const [editPhotoFiles, setEditPhotoFiles] = useState<File[]>([]);
   const isResponsible = user?.id === finding.responsibleId;
+  const isLeader = (finding as any).walkLeaderId === user?.id;
   const [walk] = walks.filter(w => w.id === finding.gembaWalkId);
   const isCreator = walk?.createdBy === user?.id;
+  const editAreas: string[] = (finding as any).areas && Array.isArray((finding as any).areas) ? (finding as any).areas : (walk?.area ? [walk.area] : []);
 
   const handleImageClick = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl);
@@ -1119,6 +1168,41 @@ function FindingCard({
     },
   });
 
+  const editFindingMutation = useMutation({
+    mutationFn: async () => {
+      const formData = new FormData();
+      formData.append("description", editDescription);
+      formData.append("area", editArea);
+      formData.append("category", editCategory);
+      editPhotoFiles.forEach((file) => formData.append("photos", file));
+      const res = await fetch(`/api/findings/${finding.id}`, {
+        method: "PATCH",
+        body: formData,
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || "Error al actualizar hallazgo");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/findings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks"] });
+      setEditOpen(false);
+      setEditPhotoFiles([]);
+      toast({ title: "Hallazgo actualizado" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
+        setTimeout(() => (window.location.href = "/api/login"), 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleSetDueDate = () => {
     if (!dueDate) {
       toast({ title: "Error", description: "Debes seleccionar una fecha", variant: "destructive" });
@@ -1135,6 +1219,24 @@ function FindingCard({
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-2 flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
+            {isLeader && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs gap-1 px-2"
+                onClick={() => {
+                  setEditDescription(finding.description);
+                  setEditArea((finding as any).area || "");
+                  setEditCategory(finding.category);
+                  setEditPhotoFiles([]);
+                  setEditOpen(true);
+                }}
+                title="Editar hallazgo"
+              >
+                <Edit className="h-3 w-3" />
+                Editar
+              </Button>
+            )}
             <Badge variant={statusInfo.variant} className="text-xs">
               {statusInfo.label}
             </Badge>
@@ -1214,6 +1316,12 @@ function FindingCard({
             ? [finding.responsibleUser.firstName, finding.responsibleUser.lastName].filter(Boolean).join(" ") || finding.responsibleUser.username
             : finding.responsibleId || "Sin asignar"}
         </span>
+        {finding.departmentName && (
+          <span className="flex items-center gap-1">
+            <Users className="h-3.5 w-3.5 shrink-0" />
+            {finding.departmentName}
+          </span>
+        )}
         <span className="flex items-center gap-1">
           <CalendarDays className="h-3.5 w-3.5 shrink-0" />
           {finding.dueDate ? (
@@ -1517,6 +1625,79 @@ function FindingCard({
           </Dialog>
         </div>
       )}
+
+      {/* Edit finding dialog (leader only) */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar hallazgo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Descripción</Label>
+              <Textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={3}
+                maxLength={200}
+                className="resize-none"
+              />
+            </div>
+            {editAreas.length > 0 && (
+              <div className="space-y-2">
+                <Label>Área</Label>
+                <Select value={editArea} onValueChange={setEditArea}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar área" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {editAreas.map((a, i) => (
+                      <SelectItem key={i} value={a}>{a}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label>Categoría</Label>
+              <Select value={editCategory} onValueChange={setEditCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categoriesList.map((c) => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Fotos o videos (opcional, reemplazan las actuales)</Label>
+              <Input
+                type="file"
+                accept="image/*,video/*"
+                multiple
+                onChange={(e) => setEditPhotoFiles(e.target.files ? Array.from(e.target.files) : [])}
+              />
+              {editPhotoFiles.length > 0 && (
+                <p className="text-xs text-muted-foreground">{editPhotoFiles.length} archivo(s) seleccionado(s)</p>
+              )}
+            </div>
+            <div className="flex gap-2 pt-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)} className="flex-1">
+                Cancelar
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={!editDescription.trim() || !editCategory || editFindingMutation.isPending}
+                onClick={() => editFindingMutation.mutate()}
+              >
+                {editFindingMutation.isPending ? "Guardando..." : "Guardar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

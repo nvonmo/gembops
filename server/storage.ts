@@ -1,5 +1,5 @@
 import {
-  gembaWalks, gembaWalkAreas, gembaWalkParticipants, findings,
+  gembaWalks, gembaWalkAreas, gembaWalkParticipants, findings, notifications,
   type GembaWalk, type InsertGembaWalk,
   type Finding, type InsertFinding,
 } from "@shared/schema";
@@ -91,8 +91,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteGembaWalk(id: number): Promise<void> {
+    // Get finding IDs for this walk so we can remove notifications that reference them
+    const walkFindings = await db.select({ id: findings.id }).from(findings).where(eq(findings.gembaWalkId, id));
+    const findingIds = walkFindings.map((f) => f.id);
+    if (findingIds.length > 0) {
+      await db.delete(notifications).where(inArray(notifications.relatedFindingId, findingIds));
+    }
     await db.delete(findings).where(eq(findings.gembaWalkId, id));
-    // Cascade delete will handle gembaWalkAreas and gembaWalkParticipants
+    await db.delete(gembaWalkAreas).where(eq(gembaWalkAreas.gembaWalkId, id));
+    await db.delete(gembaWalkParticipants).where(eq(gembaWalkParticipants.gembaWalkId, id));
     await db.delete(gembaWalks).where(eq(gembaWalks.id, id));
   }
 

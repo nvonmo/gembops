@@ -105,8 +105,33 @@ app.use((req, res, next) => {
         }
       }
     }
+    // Participants: confirmed_at column
     await pool.query(
       "ALTER TABLE participants ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP WITH TIME ZONE"
+    );
+
+    // Departments table (for assigning users and findings)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS departments (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )
+    `);
+
+    // Users: optional department_id
+    await pool.query(
+      "ALTER TABLE users ADD COLUMN IF NOT EXISTS department_id INTEGER"
+    );
+
+    // Findings: optional department_id and allow responsible_id to be null
+    await pool.query(
+      "ALTER TABLE findings ADD COLUMN IF NOT EXISTS department_id INTEGER"
+    );
+    await pool.query(
+      "ALTER TABLE findings ALTER COLUMN responsible_id DROP NOT NULL"
     );
   } catch (e) {
     console.error("[migrate] Could not run migrations:", e);

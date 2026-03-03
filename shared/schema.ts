@@ -42,7 +42,11 @@ export const findings = pgTable("findings", {
   area: text("area"), // Specific area where the finding was detected
   category: text("category").notNull(),
   description: text("description").notNull(),
-  responsibleId: varchar("responsible_id").notNull(), // Foreign key to users
+  // A finding can be assigned either to a specific user (responsibleId),
+  // to a department (departmentId), or both. For legacy data, responsibleId
+  // may be null when only departmentId is used.
+  responsibleId: varchar("responsible_id"), // Foreign key to users (optional if department is used)
+  departmentId: integer("department_id"), // Optional reference to departments
   dueDate: date("due_date"), // Optional - will be set by the responsible user
   status: text("status").notNull().default("open"),
   photoUrl: text("photo_url"), // First photo (backward compatibility)
@@ -116,14 +120,6 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   }),
 }));
 
-export const insertNotificationSchema = createInsertSchema(notifications).omit({
-  id: true,
-  createdAt: true,
-});
-
-export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type Notification = typeof notifications.$inferSelect;
-
 export const areas = pgTable("areas", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
@@ -139,6 +135,24 @@ export const categories = pgTable("categories", {
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+// Departments represent functional areas (e.g. Calidad, Producción)
+// to which users and findings can be assigned for follow-up.
+export const departments = pgTable("departments", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
 
 export const insertAreaSchema = createInsertSchema(areas).omit({
   id: true,
@@ -157,6 +171,15 @@ export const insertCategorySchema = createInsertSchema(categories).omit({
 
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Category = typeof categories.$inferSelect;
+
+export const insertDepartmentSchema = createInsertSchema(departments).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
+export type Department = typeof departments.$inferSelect;
 
 export const insertGembaWalkSchema = createInsertSchema(gembaWalks).omit({
   id: true,
