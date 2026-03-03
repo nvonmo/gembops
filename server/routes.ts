@@ -1156,11 +1156,13 @@ export async function registerRoutes(
       }
 
       const userId = req.session.userId;
+      const [currentUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+      const isAdmin = currentUser?.role === "admin";
       const [walk] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, finding.gembaWalkId));
       const isLeader = walk?.leaderId === userId;
       const isResponsible = finding.responsibleId === userId;
       const isCreator = walk?.createdBy === userId;
-      const canUpdate = isLeader || isResponsible || isCreator;
+      const canUpdate = isLeader || isResponsible || isCreator || isAdmin;
       
       if (!canUpdate) {
         return res.status(403).json({ message: "No tienes permisos para actualizar este hallazgo" });
@@ -1168,8 +1170,8 @@ export async function registerRoutes(
 
       const updateData: any = {};
 
-      // Leader can edit description, area, category, and photos (fix mistakes)
-      if (isLeader) {
+      // Leader or admin can edit description, area, category, and photos (fix mistakes)
+      if (isLeader || isAdmin) {
         if (description !== undefined) updateData.description = description;
         if (area !== undefined) updateData.area = area || null;
         if (category !== undefined) updateData.category = category;
@@ -1204,11 +1206,11 @@ export async function registerRoutes(
         }
       }
       
-      // Responsible/creator: status, closeComment, dueDate, closeEvidence
-      if (isResponsible || isCreator) {
+      // Responsible/creator/admin: status, closeComment, dueDate, closeEvidence (admin can close too)
+      if (isResponsible || isCreator || isAdmin) {
         if (status) {
-          if (status === "closed" && !isResponsible) {
-            return res.status(403).json({ message: "Solo el responsable puede cerrar el hallazgo" });
+          if (status === "closed" && !isResponsible && !isAdmin) {
+            return res.status(403).json({ message: "Solo el responsable o un administrador puede cerrar el hallazgo" });
           }
           updateData.status = status;
         }
@@ -1239,8 +1241,8 @@ export async function registerRoutes(
           }
         }
         if (dueDate !== undefined) {
-          if (!isResponsible) {
-            return res.status(403).json({ message: "Solo el responsable puede establecer la fecha de compromiso" });
+          if (!isResponsible && !isAdmin) {
+            return res.status(403).json({ message: "Solo el responsable o un administrador puede establecer la fecha de compromiso" });
           }
           updateData.dueDate = dueDate || null;
           if (!finding.dueDate && dueDate) {

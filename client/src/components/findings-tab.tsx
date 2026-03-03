@@ -1110,6 +1110,7 @@ function FindingCard({
   const [editPhotoFiles, setEditPhotoFiles] = useState<File[]>([]);
   const isResponsible = user?.id === finding.responsibleId;
   const isLeader = (finding as any).walkLeaderId === user?.id;
+  const isAdmin = user?.role === "admin";
   const [walk] = walks.filter(w => w.id === finding.gembaWalkId);
   const isCreator = walk?.createdBy === user?.id;
   const editAreas: string[] = (finding as any).areas && Array.isArray((finding as any).areas) ? (finding as any).areas : (walk?.area ? [walk.area] : []);
@@ -1220,7 +1221,7 @@ function FindingCard({
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-2 flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            {isLeader && (
+            {(isLeader || isAdmin) && (
               <Button
                 variant="ghost"
                 size="sm"

@@ -957,7 +957,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                               <p className="text-sm font-medium leading-relaxed">{finding.description}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {isLeader && (
+                              {(isLeader || isAdmin) && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
