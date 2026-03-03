@@ -1244,6 +1244,7 @@ export async function registerRoutes(
           }
         }
         if (status === "closed" && finding.status !== "closed") {
+          updateData.closedAt = new Date();
           await db
             .update(notifications)
             .set({ isActionCompleted: true })
@@ -1343,7 +1344,7 @@ export async function registerRoutes(
         <p>Generado: ${new Date().toLocaleDateString("es-MX")}${month && month !== "all" ? ` | Mes: ${month}` : ""}</p>
         <table>
           <thead>
-            <tr><th>#</th><th>Fecha Gemba Walk</th><th>Levantado por</th><th>Area</th><th>Categoria</th><th>Descripcion</th><th>Responsable</th><th>Fecha compromiso</th><th>Estatus</th></tr>
+            <tr><th>#</th><th>Fecha Gemba Walk</th><th>Levantado por</th><th>Area</th><th>Categoria</th><th>Descripcion</th><th>Responsable</th><th>Fecha compromiso</th><th>Estatus</th><th>Fecha de cierre</th><th>Comentarios de cierre</th></tr>
           </thead>
           <tbody>`;
 
@@ -1362,6 +1363,8 @@ export async function registerRoutes(
             : walk?.leaderId || walk?.createdBy || "Sin asignar";
         const isOverdue = f.status !== "closed" && f.dueDate && isOverdueByDateOnly(f.dueDate);
         const statusClass = f.status === "closed" ? "closed" : isOverdue ? "overdue" : "";
+        const closedAtStr = f.closedAt ? new Date(f.closedAt).toLocaleDateString("es-MX") : "-";
+        const closeCommentEscaped = (f.closeComment || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         html += `<tr>
           <td>${i + 1}</td>
           <td>${walk?.date || "-"}</td>
@@ -1372,6 +1375,8 @@ export async function registerRoutes(
           <td>${responsibleName}</td>
           <td class="${statusClass}">${f.dueDate || "Sin fecha"}${isOverdue ? " (VENCIDO)" : ""}</td>
           <td class="${statusClass}">${statusLabels[f.status] || f.status}</td>
+          <td>${closedAtStr}</td>
+          <td>${closeCommentEscaped}</td>
         </tr>`;
       });
 
@@ -1446,7 +1451,7 @@ export async function registerRoutes(
         closed: "Cerrado",
       };
 
-      const header = "Fecha Gemba Walk\tLevantado por\tArea\tCategoria\tDescripcion\tResponsable\tFecha compromiso\tEstatus\tComentario cierre\n";
+      const header = "Fecha Gemba Walk\tLevantado por\tArea\tCategoria\tDescripcion\tResponsable\tFecha compromiso\tEstatus\tFecha de cierre\tComentario cierre\n";
       const rows = findingsList.map((f) => {
         const walk = walkMap.get(f.gembaWalkId);
         const responsibleUser = userMap.get(f.responsibleId);
@@ -1460,6 +1465,7 @@ export async function registerRoutes(
           : creatorUser
             ? [creatorUser.firstName, creatorUser.lastName].filter(Boolean).join(" ") || creatorUser.username
             : walk?.leaderId || walk?.createdBy || "Sin asignar";
+        const closedAtStr = f.closedAt ? new Date(f.closedAt).toLocaleDateString("es-MX") : "-";
         return [
           walk?.date || "-",
           raisedByName,
@@ -1469,7 +1475,8 @@ export async function registerRoutes(
           responsibleName,
           f.dueDate || "Sin fecha",
           statusLabels[f.status] || f.status,
-          f.closeComment || "",
+          closedAtStr,
+          (f.closeComment || "").replace(/\t/g, " "),
         ].join("\t");
       });
 

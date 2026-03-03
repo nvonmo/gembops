@@ -133,6 +133,11 @@ app.use((req, res, next) => {
     await pool.query(
       "ALTER TABLE findings ALTER COLUMN responsible_id DROP NOT NULL"
     );
+
+    // Findings: fecha de cierre (when the finding was closed)
+    await pool.query(
+      "ALTER TABLE findings ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP WITH TIME ZONE"
+    );
   } catch (e) {
     console.error("[migrate] Could not run migrations:", e);
   }

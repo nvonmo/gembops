@@ -53,6 +53,7 @@ export const findings = pgTable("findings", {
   photoUrls: text("photo_urls"), // JSON array of photo/video URLs (multiple attachments)
   closeComment: text("close_comment"),
   closeEvidenceUrl: text("close_evidence_url"), // Photo evidence when closing
+  closedAt: timestamp("closed_at"), // When the finding was closed
   createdAt: timestamp("created_at").defaultNow(),
 });
 
