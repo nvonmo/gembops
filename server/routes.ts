@@ -1468,8 +1468,9 @@ export async function registerRoutes(
         closed: "Cerrado",
       };
 
-      const header = "Fecha Gemba Walk\tLevantado por\tArea\tCategoria\tDescripcion\tResponsable\tFecha compromiso\tEstatus\tAlerta\tFecha de cierre\tComentario cierre\n";
-      const rows = findingsList.map((f) => {
+      // Misma estructura que el PDF: incluye índice (#) y columna de alerta
+      const header = "#\tFecha Gemba Walk\tLevantado por\tArea\tCategoria\tDescripcion\tResponsable\tFecha compromiso\tEstatus\tAlerta\tFecha de cierre\tComentario cierre\n";
+      const rows = findingsList.map((f, index) => {
         const walk = walkMap.get(f.gembaWalkId);
         const responsibleUser = userMap.get(f.responsibleId);
         const responsibleName = responsibleUser 
@@ -1489,6 +1490,7 @@ export async function registerRoutes(
             : "-";
         const alertValue = (f as any).riskIfRepeats ? "Riesgo mayor si se repite" : "-";
         return [
+          index + 1,
           walk?.date || "-",
           raisedByName,
           (f.area || walk?.area || "-").replace(/\t/g, " "),
@@ -1505,8 +1507,9 @@ export async function registerRoutes(
 
       const tsv = header + rows.join("\n");
 
-      res.setHeader("Content-Type", "text/tab-separated-values; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="reporte-gemba-${month || "all"}.tsv"`);
+      // Enviamos TSV pero con extensión .xls y tipo de Excel para que se abra directamente en Excel
+      res.setHeader("Content-Type", "application/vnd.ms-excel; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="reporte-gemba-${month || "all"}.xls"`);
       res.send("\uFEFF" + tsv);
     } catch (error) {
       console.error("Error generating Excel:", error);
