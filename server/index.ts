@@ -76,11 +76,20 @@ app.use((req, res, next) => {
   try {
     const { pool } = await import("./db");
     // Rename old table names so they are easier to find in Railway (walk_areas, participants)
+    // Only attempt rename if the old table exists (avoids errors when DB already uses new names)
     for (const [oldName, newName] of [
       ["gemba_walk_areas", "walk_areas"],
       ["gemba_walk_participants", "participants"],
     ] as const) {
       try {
+        const existsResult = await pool.query(
+          `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1`,
+          [oldName]
+        );
+        if (existsResult.rowCount === 0) {
+          // Old table does not exist (already renamed or fresh DB) — skip
+          continue;
+        }
         await pool.query(
           `ALTER TABLE "${oldName}" RENAME TO "${newName}"`
         );
@@ -88,7 +97,7 @@ app.use((req, res, next) => {
       } catch (renameErr: any) {
         const code = renameErr?.code;
         if (code === "42P01") {
-          // Old table does not exist (already renamed or fresh DB) — skip
+          // Old table does not exist — skip (can happen under load)
         } else if (code === "42P07") {
           // New table already exists (e.g. after db:push): copy data from old, then drop old
           try {
