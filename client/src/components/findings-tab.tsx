@@ -582,12 +582,15 @@ export default function FindingsTab() {
               </div>
               <div className="space-y-2">
                 <Label>Departamento responsable (opcional)</Label>
-                <Select value={departmentId} onValueChange={setDepartmentId}>
+                <Select
+                  value={departmentId || "__none__"}
+                  onValueChange={(v) => setDepartmentId(v === "__none__" ? "" : v)}
+                >
                   <SelectTrigger data-testid="select-department" className="text-base h-11 sm:h-10">
                     <SelectValue placeholder="Seleccionar departamento (o dejar vacío)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin departamento</SelectItem>
+                    <SelectItem value="__none__">Sin departamento</SelectItem>
                     {departmentsList
                       .filter((d) => d.isActive)
                       .map((dept) => (
