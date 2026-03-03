@@ -1360,7 +1360,7 @@ export async function registerRoutes(
         <p>Generado: ${formatDateMexico(new Date())}${month && month !== "all" ? ` | Mes: ${month}` : ""}</p>
         <table>
           <thead>
-            <tr><th>#</th><th>Fecha Gemba Walk</th><th>Levantado por</th><th>Area</th><th>Categoria</th><th>Descripcion</th><th>Responsable</th><th>Fecha compromiso</th><th>Estatus</th><th>Fecha de cierre</th><th>Comentarios de cierre</th></tr>
+            <tr><th>#</th><th>Fecha Gemba Walk</th><th>Levantado por</th><th>Area</th><th>Categoria</th><th>Descripcion</th><th>Responsable</th><th>Fecha compromiso</th><th>Estatus</th><th>Alerta</th><th>Fecha de cierre</th><th>Comentarios de cierre</th></tr>
           </thead>
           <tbody>`;
 
@@ -1385,6 +1385,7 @@ export async function registerRoutes(
             ? formatDateMexico(new Date())
             : "-";
         const closeCommentEscaped = (f.closeComment || "-").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const alertCell = (f as any).riskIfRepeats ? '<span style="color:#b45309;font-weight:600;">Riesgo mayor si se repite</span>' : "-";
         html += `<tr>
           <td>${i + 1}</td>
           <td>${walk?.date || "-"}</td>
@@ -1395,6 +1396,7 @@ export async function registerRoutes(
           <td>${responsibleName}</td>
           <td class="${statusClass}">${f.dueDate || "Sin fecha"}${isOverdue ? " (VENCIDO)" : ""}</td>
           <td class="${statusClass}">${statusLabels[f.status] || f.status}</td>
+          <td>${alertCell}</td>
           <td>${closedAtStr}</td>
           <td>${closeCommentEscaped}</td>
         </tr>`;
@@ -1471,7 +1473,7 @@ export async function registerRoutes(
         closed: "Cerrado",
       };
 
-      const header = "Fecha Gemba Walk\tLevantado por\tArea\tCategoria\tDescripcion\tResponsable\tFecha compromiso\tEstatus\tFecha de cierre\tComentario cierre\n";
+      const header = "Fecha Gemba Walk\tLevantado por\tArea\tCategoria\tDescripcion\tResponsable\tFecha compromiso\tEstatus\tAlerta\tFecha de cierre\tComentario cierre\n";
       const rows = findingsList.map((f) => {
         const walk = walkMap.get(f.gembaWalkId);
         const responsibleUser = userMap.get(f.responsibleId);
@@ -1490,6 +1492,7 @@ export async function registerRoutes(
           : f.status === "closed"
             ? formatDateMexico(new Date())
             : "-";
+        const alertValue = (f as any).riskIfRepeats ? "Riesgo mayor si se repite" : "-";
         return [
           walk?.date || "-",
           raisedByName,
@@ -1499,6 +1502,7 @@ export async function registerRoutes(
           responsibleName,
           f.dueDate || "Sin fecha",
           statusLabels[f.status] || f.status,
+          alertValue,
           closedAtStr,
           (f.closeComment || "").replace(/\t/g, " "),
         ].join("\t");
