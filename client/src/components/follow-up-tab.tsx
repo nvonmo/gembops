@@ -294,7 +294,7 @@ export default function FollowUpTab() {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <Card className="p-3 sm:p-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="p-1.5 sm:p-2 rounded-md bg-destructive/10 shrink-0">
@@ -314,6 +314,17 @@ export default function FollowUpTab() {
             <div>
               <p className="text-xl sm:text-2xl font-bold" data-testid="text-pending-count">{pending.length}</p>
               <p className="text-xs text-muted-foreground">Pendientes</p>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="p-1.5 sm:p-2 rounded-md bg-muted shrink-0">
+              <CalendarDays className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div>
+              <p className="text-xl sm:text-2xl font-bold" data-testid="text-without-date-count">{withoutDate.length}</p>
+              <p className="text-xs text-muted-foreground">Sin fecha compromiso (abiertos)</p>
             </div>
           </div>
         </Card>
