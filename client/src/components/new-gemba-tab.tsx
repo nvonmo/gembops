@@ -211,7 +211,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                 imParticipant: (date) => walks.some((walk: any) => isSameDay(parseISO(walk.date), date) && walk.participants?.some((p: any) => p.id === user?.id) && walk.leaderId !== user?.id),
               }}
               modifiersClassNames={{
-                hasWalk: "bg-primary/10 text-primary font-semibold hover:bg-primary/20",
+                hasWalk: "bg-slate-200 text-slate-700 dark:bg-slate-600/40 dark:text-slate-300 font-medium hover:bg-slate-300 dark:hover:bg-slate-600/60",
                 imParticipant: "bg-primary/20 text-primary font-semibold hover:bg-primary/30 ring-1 ring-primary/30",
                 imLeader: "bg-amber-500/25 text-amber-800 dark:text-amber-200 font-semibold hover:bg-amber-500/35 ring-1 ring-amber-500/40",
               }}
@@ -231,8 +231,8 @@ export default function NewGembaTab({ userId }: { userId: string }) {
             />
             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <span className="h-4 w-4 rounded bg-primary/10 border border-primary/20" aria-hidden />
-                Recorrido
+                <span className="h-4 w-4 rounded bg-slate-200 dark:bg-slate-600/40 border border-slate-300 dark:border-slate-500" aria-hidden />
+                Recorrido (no participas)
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="h-4 w-4 rounded bg-primary/20 border border-primary/30" aria-hidden />
@@ -265,8 +265,14 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                       const walkAreas = walk.areas || [walk.area];
                       const walkLeader = walk.leader;
                       const walkParticipants = walk.participants || [];
+                      const isLeader = walk.leaderId === user?.id;
+                      const isParticipant = !isLeader && walk.participants?.some((p: any) => p.id === user?.id);
+                      const isViewOnly = !isLeader && !isParticipant;
                       return (
-                        <Card key={walk.id} className="p-3 border-l-4 border-l-primary">
+                        <Card
+                          key={walk.id}
+                          className={`p-3 border-l-4 ${isViewOnly ? "border-l-slate-400 dark:border-l-slate-500 bg-slate-50/50 dark:bg-slate-800/30" : "border-l-primary"}`}
+                        >
                           <div className="space-y-2">
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex items-center gap-3 flex-wrap min-w-0 flex-1">

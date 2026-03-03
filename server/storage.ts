@@ -9,6 +9,7 @@ import { eq, desc, and, gte, lt, inArray, or } from "drizzle-orm";
 export interface IStorage {
   createGembaWalk(walk: InsertGembaWalk): Promise<GembaWalk>;
   getGembaWalks(userId: string): Promise<GembaWalk[]>;
+  getAllGembaWalks(): Promise<GembaWalk[]>;
   getGembaWalk(id: number): Promise<GembaWalk | undefined>;
   deleteGembaWalk(id: number): Promise<void>;
 
@@ -83,6 +84,11 @@ export class DatabaseStorage implements IStorage {
     });
     
     return allWalks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  async getAllGembaWalks(): Promise<GembaWalk[]> {
+    const allWalks = await db.select().from(gembaWalks).orderBy(desc(gembaWalks.createdAt));
+    return allWalks;
   }
 
   async getGembaWalk(id: number): Promise<GembaWalk | undefined> {

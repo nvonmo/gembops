@@ -139,8 +139,8 @@ export async function registerRoutes(
 
   app.get("/api/gemba-walks", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.session.userId;
-      const walks = await storage.getGembaWalks(userId);
+      // Todos los usuarios autenticados ven todos los recorridos (calendario visible para todos)
+      const walks = await storage.getAllGembaWalks();
       
       // Get additional areas and participants for each walk
       const walksWithDetails = await Promise.all(walks.map(async (walk) => {
@@ -372,21 +372,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "ID inválido" });
       }
       
-      const userId = req.session.userId;
-      
       // Get the walk
       const walk = await storage.getGembaWalk(id);
       if (!walk) {
         return res.status(404).json({ message: "Gemba Walk no encontrado" });
       }
       
-      // Check if user has access (creator, leader, or participant)
-      const userWalks = await storage.getGembaWalks(userId);
-      const hasAccess = userWalks.some(w => w.id === id);
-      
-      if (!hasAccess) {
-        return res.status(403).json({ message: "No tienes acceso a este Gemba Walk" });
-      }
+      // Cualquier usuario autenticado puede ver el detalle (calendario visible para todos)
       
       // Get additional areas and participants
       const walkAreas = await db.select().from(gembaWalkAreas).where(eq(gembaWalkAreas.gembaWalkId, walk.id));
