@@ -132,6 +132,8 @@ export const areas = pgTable("areas", {
 export const categories = pgTable("categories", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
+  /** Text explaining what this category includes (for user guidance). */
+  includesDescription: text("includes_description"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

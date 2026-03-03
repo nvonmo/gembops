@@ -138,6 +138,11 @@ app.use((req, res, next) => {
     await pool.query(
       "ALTER TABLE findings ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP WITH TIME ZONE"
     );
+
+    // Categories: text explaining what the category includes
+    await pool.query(
+      "ALTER TABLE categories ADD COLUMN IF NOT EXISTS includes_description TEXT"
+    );
   } catch (e) {
     console.error("[migrate] Could not run migrations:", e);
   }

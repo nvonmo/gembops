@@ -1746,16 +1746,17 @@ export async function registerRoutes(
 
   app.post("/api/categories", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const { name } = req.body;
+      const { name, includesDescription } = req.body;
       if (!name || typeof name !== "string" || name.trim().length === 0) {
         return res.status(400).json({ message: "El nombre de la categoria es requerido" });
       }
       const trimmedName = name.trim();
+      const desc = typeof includesDescription === "string" ? includesDescription.trim() || null : null;
       const [existing] = await db.select().from(categories).where(eq(categories.name, trimmedName));
       if (existing) {
         return res.status(400).json({ message: "Esa categoria ya existe" });
       }
-      const [newCategory] = await db.insert(categories).values({ name: trimmedName }).returning();
+      const [newCategory] = await db.insert(categories).values({ name: trimmedName, includesDescription: desc }).returning();
       console.log("[Create Category] Success:", newCategory);
       res.json(newCategory);
     } catch (error: any) {
@@ -1770,7 +1771,7 @@ export async function registerRoutes(
   app.patch("/api/categories/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { name, isActive } = req.body;
+      const { name, isActive, includesDescription } = req.body;
       
       if (isNaN(id)) {
         return res.status(400).json({ message: "ID inválido" });
@@ -1782,6 +1783,9 @@ export async function registerRoutes(
           return res.status(400).json({ message: "El nombre de la categoria es requerido" });
         }
         updateData.name = name.trim();
+      }
+      if (includesDescription !== undefined) {
+        updateData.includesDescription = typeof includesDescription === "string" ? includesDescription.trim() || null : null;
       }
       if (isActive !== undefined) {
         updateData.isActive = isActive;
