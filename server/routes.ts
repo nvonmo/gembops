@@ -751,6 +751,7 @@ export async function registerRoutes(
           photoUrls: findings.photoUrls,
           closeComment: findings.closeComment,
           closeEvidenceUrl: findings.closeEvidenceUrl,
+          riskIfRepeats: findings.riskIfRepeats,
           createdAt: findings.createdAt,
         })
         .from(findings)
@@ -965,6 +966,7 @@ export async function registerRoutes(
           photoUrls: findings.photoUrls,
           closeComment: findings.closeComment,
           closeEvidenceUrl: findings.closeEvidenceUrl,
+          riskIfRepeats: findings.riskIfRepeats,
           createdAt: findings.createdAt,
         })
         .from(findings)
@@ -1151,7 +1153,7 @@ export async function registerRoutes(
   app.patch("/api/findings/:id", isAuthenticated, uploadFindingPatch, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { status, closeComment, dueDate, description, area, category } = req.body;
+      const { status, closeComment, dueDate, description, area, category, riskIfRepeats } = req.body;
       
       // Get the finding to verify permissions
       const [finding] = await db.select().from(findings).where(eq(findings.id, id));
@@ -1174,11 +1176,12 @@ export async function registerRoutes(
 
       const updateData: any = {};
 
-      // Leader or admin can edit description, area, category, and photos (fix mistakes)
+      // Leader or admin can edit description, area, category, photos and alert "risk if repeats"
       if (isLeader || isAdmin) {
         if (description !== undefined) updateData.description = description;
         if (area !== undefined) updateData.area = area || null;
         if (category !== undefined) updateData.category = category;
+        if (riskIfRepeats !== undefined) updateData.riskIfRepeats = riskIfRepeats === true || riskIfRepeats === "true";
         const photoFiles = (req.files?.photos as Express.Multer.File[]) || [];
         if (photoFiles.length > 0) {
           const photoUrls: string[] = [];

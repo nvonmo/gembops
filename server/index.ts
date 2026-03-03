@@ -139,6 +139,11 @@ app.use((req, res, next) => {
       "ALTER TABLE findings ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP WITH TIME ZONE"
     );
 
+    // Findings: alerta riesgo mayor si se repite (solo admin/líder puede marcar)
+    await pool.query(
+      "ALTER TABLE findings ADD COLUMN IF NOT EXISTS risk_if_repeats BOOLEAN NOT NULL DEFAULT false"
+    );
+
     // Categories: text explaining what the category includes
     await pool.query(
       "ALTER TABLE categories ADD COLUMN IF NOT EXISTS includes_description TEXT"

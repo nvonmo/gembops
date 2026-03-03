@@ -683,6 +683,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
   const [editDescription, setEditDescription] = useState("");
   const [editArea, setEditArea] = useState("");
   const [editCategory, setEditCategory] = useState("");
+  const [editRiskIfRepeats, setEditRiskIfRepeats] = useState(false);
   const [editPhotoFiles, setEditPhotoFiles] = useState<File[]>([]);
   const { data: walkDetails, isLoading } = useQuery<any>({
     queryKey: ["/api/gemba-walks", walkId],
@@ -722,6 +723,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
       formData.append("description", editDescription);
       formData.append("area", editArea);
       formData.append("category", editCategory);
+      formData.append("riskIfRepeats", String(editRiskIfRepeats));
       editPhotoFiles.forEach((file) => formData.append("photos", file));
       const res = await fetch(`/api/findings/${findingToEdit.id}`, {
         method: "PATCH",
@@ -746,11 +748,12 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
-  const openEditFinding = (finding: Finding & { responsibleUser?: any }) => {
+  const openEditFinding = (finding: Finding & { responsibleUser?: any; riskIfRepeats?: boolean }) => {
     setFindingToEdit(finding);
     setEditDescription(finding.description);
     setEditArea(finding.area || "");
     setEditCategory(finding.category);
+    setEditRiskIfRepeats(Boolean((finding as any).riskIfRepeats));
     setEditPhotoFiles([]);
   };
   const isLeader = walkDetails?.leader?.id === user?.id;
@@ -962,7 +965,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium leading-relaxed">{finding.description}</p>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-2 shrink-0 flex-wrap">
                               {(isLeader || isAdmin) && (
                                 <Button
                                   variant="ghost"
@@ -974,6 +977,12 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                                   <Pencil className="h-3 w-3" />
                                   Editar
                                 </Button>
+                              )}
+                              {(finding as any).riskIfRepeats && (
+                                <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Riesgo mayor si se repite
+                                </Badge>
                               )}
                               <Badge variant={finding.status === "closed" ? "secondary" : "destructive"} className="text-xs">
                                 {finding.status === "closed" ? "Cerrado" : "Abierto"}
@@ -1070,6 +1079,19 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
                 </SelectContent>
               </Select>
             </div>
+            {(isLeader || isAdmin) && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="edit-risk-if-repeats"
+                  checked={editRiskIfRepeats}
+                  onCheckedChange={(checked) => setEditRiskIfRepeats(!!checked)}
+                />
+                <Label htmlFor="edit-risk-if-repeats" className="text-sm font-normal cursor-pointer flex items-center gap-1.5">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  Alerta: riesgo mayor si se repite
+                </Label>
+              </div>
+            )}
             <div className="space-y-2">
               <Label>Fotos o videos (opcional, reemplazan las actuales)</Label>
               <Input

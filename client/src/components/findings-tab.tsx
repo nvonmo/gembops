@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download } from "lucide-react";
+import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download, AlertTriangle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
@@ -1124,7 +1124,7 @@ function FindingCard({
   };
 
   const updateMutation = useMutation({
-    mutationFn: async (data: { status?: string; closeComment?: string; dueDate?: string; closeEvidenceFile?: File | null }) => {
+    mutationFn: async (data: { status?: string; closeComment?: string; dueDate?: string; closeEvidenceFile?: File | null; riskIfRepeats?: boolean }) => {
       const { closeEvidenceFile: evidenceFile, ...restData } = data;
       
       // If there's evidence file, use FormData
@@ -1133,6 +1133,7 @@ function FindingCard({
         formData.append("status", restData.status || finding.status);
         if (restData.closeComment !== undefined) formData.append("closeComment", restData.closeComment);
         if (restData.dueDate !== undefined) formData.append("dueDate", restData.dueDate || "");
+        if (restData.riskIfRepeats !== undefined) formData.append("riskIfRepeats", String(restData.riskIfRepeats));
         formData.append("closeEvidence", evidenceFile);
         
         const res = await fetch(`/api/findings/${finding.id}`, {
@@ -1244,6 +1245,12 @@ function FindingCard({
             <Badge variant={statusInfo.variant} className="text-xs">
               {statusInfo.label}
             </Badge>
+            {(finding as any).riskIfRepeats && (
+              <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Riesgo mayor si se repite
+              </Badge>
+            )}
             {isOverdue && (
               <Badge variant="destructive" className="text-xs">
                 Vencido
@@ -1253,6 +1260,19 @@ function FindingCard({
               <Tag className="h-3 w-3 mr-1" />
               {finding.category}
             </Badge>
+            {(isLeader || isAdmin) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs gap-1 px-2 text-amber-700 dark:text-amber-400"
+                onClick={() => updateMutation.mutate({ riskIfRepeats: !(finding as any).riskIfRepeats })}
+                disabled={updateMutation.isPending}
+                title={(finding as any).riskIfRepeats ? "Quitar alerta" : "Marcar: riesgo mayor si se repite"}
+              >
+                <AlertTriangle className="h-3 w-3" />
+                {(finding as any).riskIfRepeats ? "Quitar alerta" : "Marcar alerta"}
+              </Button>
+            )}
           </div>
           <p className="text-sm leading-relaxed" data-testid={`text-finding-desc-${finding.id}`}>
             {finding.description}
