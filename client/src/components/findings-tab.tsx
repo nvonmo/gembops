@@ -13,8 +13,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download, AlertTriangle } from "lucide-react";
+import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download, AlertTriangle, HelpCircle } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -110,7 +111,7 @@ export default function FindingsTab() {
   });
 
   // Load categories from API
-  const { data: categoriesList = [], isLoading: isLoadingCategories } = useQuery<Array<{ id: number; name: string; isActive: boolean }>>({
+  const { data: categoriesList = [], isLoading: isLoadingCategories } = useQuery<Array<{ id: number; name: string; isActive: boolean; includesDescription?: string | null }>>({
     queryKey: ["/api/categories"],
     retry: 2,
   });
@@ -451,7 +452,19 @@ export default function FindingsTab() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label>Categoria</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label>Categoria</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex text-muted-foreground cursor-help" aria-label="Ayuda">
+                        <HelpCircle className="h-4 w-4" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p>Pasa el cursor sobre cada opción para ver qué incluye la categoría y asignarla correctamente.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Select value={category} onValueChange={setCategory}>
                   <SelectTrigger data-testid="select-category" className="text-base h-11 sm:h-10">
                     <SelectValue placeholder="Seleccionar categoria" />
@@ -467,13 +480,19 @@ export default function FindingsTab() {
                       </SelectItem>
                     ) : (
                       categoriesList.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.name} className="text-base py-3">
+                        <SelectItem key={cat.id} value={cat.name} className="text-base py-3" title={cat.includesDescription ?? undefined}>
                           {cat.name}
                         </SelectItem>
                       ))
                     )}
                   </SelectContent>
                 </Select>
+                {category && (() => {
+                  const selected = categoriesList.find((c) => c.name === category);
+                  return selected?.includesDescription ? (
+                    <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2 py-1">Qué incluye: {selected.includesDescription}</p>
+                  ) : null;
+                })()}
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -1089,7 +1108,7 @@ function FindingCard({
   statusInfo: { label: string; variant: "default" | "secondary" | "destructive" };
   isOverdue: boolean;
   walks: GembaWalk[];
-  categoriesList: Array<{ id: number; name: string; isActive?: boolean }>;
+  categoriesList: Array<{ id: number; name: string; isActive?: boolean; includesDescription?: string | null }>;
 }) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1694,17 +1713,35 @@ function FindingCard({
               </div>
             )}
             <div className="space-y-2">
-              <Label>Categoría</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Categoría</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex text-muted-foreground cursor-help" aria-label="Ayuda">
+                      <HelpCircle className="h-4 w-4" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <p>Pasa el cursor sobre cada opción para ver qué incluye la categoría.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Select value={editCategory} onValueChange={setEditCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
                   {categoriesList.map((c) => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.name} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {editCategory && (() => {
+                const selected = categoriesList.find((c) => c.name === editCategory);
+                return selected?.includesDescription ? (
+                  <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2 py-1">Qué incluye: {selected.includesDescription}</p>
+                ) : null;
+              })()}
             </div>
             <div className="space-y-2">
               <Label>Fotos o videos (opcional, reemplazan las actuales)</Label>

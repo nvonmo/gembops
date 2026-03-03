@@ -15,10 +15,11 @@ import { useAuth } from "@/hooks/use-auth";
 import type { GembaWalk, Area, Finding } from "@shared/schema";
 import { format, parseISO, isSameDay } from "date-fns";
 import { es } from "date-fns/locale";
-import { MapPin, Calendar as CalendarIcon, Trash2, Users, UserCheck, X, List, CalendarDays, Eye, AlertCircle, CheckCircle2, Clock, Tag, User, Repeat, CheckCheck, Pencil } from "lucide-react";
+import { MapPin, Calendar as CalendarIcon, Trash2, Users, UserCheck, X, List, CalendarDays, Eye, AlertCircle, CheckCircle2, Clock, Tag, User, Repeat, CheckCheck, Pencil, HelpCircle } from "lucide-react";
 import { isOverdueByDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface User {
   id: string;
@@ -689,7 +690,7 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
     queryKey: ["/api/gemba-walks", walkId],
     enabled: !!walkId && open,
   });
-  const { data: categoriesList = [] } = useQuery<Array<{ id: number; name: string }>>({
+  const { data: categoriesList = [] } = useQuery<Array<{ id: number; name: string; includesDescription?: string | null }>>({
     queryKey: ["/api/categories"],
     enabled: !!findingToEdit,
   });
@@ -1067,17 +1068,35 @@ function GembaWalkDetailDialog({ walkId, open, onOpenChange, isAdmin, onDelete }
               </div>
             )}
             <div className="space-y-2">
-              <Label>Categoría</Label>
+              <div className="flex items-center gap-1.5">
+                <Label>Categoría</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex text-muted-foreground cursor-help" aria-label="Ayuda">
+                      <HelpCircle className="h-4 w-4" />
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <p>Pasa el cursor sobre cada opción para ver qué incluye la categoría.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
               <Select value={editCategory} onValueChange={setEditCategory}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar categoría" />
                 </SelectTrigger>
                 <SelectContent>
                   {categoriesList.map((c) => (
-                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                    <SelectItem key={c.id} value={c.name} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {editCategory && (() => {
+                const selected = categoriesList.find((c) => c.name === editCategory);
+                return selected?.includesDescription ? (
+                  <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2 py-1">Qué incluye: {selected.includesDescription}</p>
+                ) : null;
+              })()}
             </div>
             {(isLeader || isAdmin) && (
               <div className="flex items-center gap-2">

@@ -14,8 +14,9 @@ import { useToast } from "@/hooks/use-toast";
 import type { Finding, GembaWalk } from "@shared/schema";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw, Pencil } from "lucide-react";
+import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw, Pencil, HelpCircle } from "lucide-react";
 import { isOverdueByDate } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface User {
   id: string;
@@ -79,7 +80,7 @@ export default function FollowUpTab() {
     queryKey: ["/api/gemba-walks"],
   });
 
-  const { data: categoriesList = [] } = useQuery<{ id: number; name: string; isActive?: boolean }[]>({
+  const { data: categoriesList = [] } = useQuery<{ id: number; name: string; isActive?: boolean; includesDescription?: string | null }[]>({
     queryKey: ["/api/categories"],
   });
 
@@ -621,17 +622,35 @@ export default function FollowUpTab() {
                 ) : null;
               })()}
               <div className="space-y-2">
-                <Label>Categoría</Label>
+                <div className="flex items-center gap-1.5">
+                  <Label>Categoría</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-flex text-muted-foreground cursor-help" aria-label="Ayuda">
+                        <HelpCircle className="h-4 w-4" />
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <p>Pasa el cursor sobre cada opción para ver qué incluye la categoría.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Select value={editCategory} onValueChange={setEditCategory}>
                   <SelectTrigger className="text-base">
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
                     {(categoriesList || []).map((c) => (
-                      <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+                      <SelectItem key={c.id} value={c.name} title={c.includesDescription ?? undefined}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {editCategory && (() => {
+                  const selected = (categoriesList || []).find((c) => c.name === editCategory);
+                  return selected?.includesDescription ? (
+                    <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2 py-1">Qué incluye: {selected.includesDescription}</p>
+                  ) : null;
+                })()}
               </div>
               <div className="space-y-2">
                 <Label>Fotos o videos (opcional, reemplazan las actuales)</Label>
