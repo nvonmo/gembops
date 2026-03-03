@@ -23,6 +23,13 @@ function formatDateMexico(d: Date): string {
   return d.toLocaleDateString("es-MX", { timeZone: MEXICO_TZ });
 }
 
+/** Escapa un valor para CSV: envuelve en comillas y duplica comillas internas. */
+function escapeCsvCell(value: string | number): string {
+  const s = String(value ?? "");
+  const quoted = s.replace(/"/g, '""');
+  return `"${quoted}"`;
+}
+
 /** YYYY-MM-DD in Mexico timezone for date-only comparison. */
 function getDateMexicoYYYYMMDD(d: Date): string {
   const s = d.toLocaleString("en-CA", { timeZone: MEXICO_TZ, year: "numeric", month: "2-digit", day: "2-digit" });
@@ -1468,9 +1475,13 @@ export async function registerRoutes(
         closed: "Cerrado",
       };
 
-      // Misma estructura que el PDF: incluye índice (#) y columna de alerta
-      const header = "#\tFecha Gemba Walk\tLevantado por\tArea\tCategoria\tDescripcion\tResponsable\tFecha compromiso\tEstatus\tAlerta\tFecha de cierre\tComentario cierre\n";
-      const rows = findingsList.map((f, index) => {
+      // CSV con comas y campos entrecomillados para que Excel separe bien las columnas (misma estructura que el PDF)
+      const csvHeader = [
+        "#", "Fecha Gemba Walk", "Levantado por", "Area", "Categoria", "Descripcion",
+        "Responsable", "Fecha compromiso", "Estatus", "Alerta", "Fecha de cierre", "Comentario cierre",
+      ].map(escapeCsvCell).join(",");
+
+      const csvRows = findingsList.map((f, index) => {
         const walk = walkMap.get(f.gembaWalkId);
         const responsibleUser = userMap.get(f.responsibleId);
         const responsibleName = responsibleUser 
@@ -1489,28 +1500,28 @@ export async function registerRoutes(
             ? formatDateMexico(new Date())
             : "-";
         const alertValue = (f as any).riskIfRepeats ? "Riesgo mayor si se repite" : "-";
-        return [
+        const cells = [
           index + 1,
           walk?.date || "-",
           raisedByName,
-          (f.area || walk?.area || "-").replace(/\t/g, " "),
+          f.area || walk?.area || "-",
           f.category,
-          f.description.replace(/\t/g, " "),
+          f.description,
           responsibleName,
           f.dueDate || "Sin fecha",
           statusLabels[f.status] || f.status,
           alertValue,
           closedAtStr,
-          (f.closeComment || "").replace(/\t/g, " "),
-        ].join("\t");
+          f.closeComment || "",
+        ];
+        return cells.map(escapeCsvCell).join(",");
       });
 
-      const tsv = header + rows.join("\n");
+      const csv = "\uFEFF" + csvHeader + "\n" + csvRows.join("\n");
 
-      // Enviamos TSV pero con extensión .xls y tipo de Excel para que se abra directamente en Excel
-      res.setHeader("Content-Type", "application/vnd.ms-excel; charset=utf-8");
-      res.setHeader("Content-Disposition", `attachment; filename="reporte-gemba-${month || "all"}.xls"`);
-      res.send("\uFEFF" + tsv);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="reporte-gemba-${month || "all"}.csv"`);
+      res.send(csv);
     } catch (error) {
       console.error("Error generating Excel:", error);
       res.status(500).json({ message: "Error al generar reporte" });
