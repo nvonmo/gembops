@@ -1221,7 +1221,7 @@ function FindingCard({
 
   return (
     <Card className="p-3 sm:p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
         <div className="space-y-2 flex-1 min-w-0">
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1257,7 +1257,7 @@ function FindingCard({
                   Vencido
                 </Badge>
               )}
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs max-w-full sm:max-w-xs whitespace-normal break-words text-left">
                 <Tag className="h-3 w-3 mr-1" />
                 {finding.category}
               </Badge>
@@ -1288,7 +1288,7 @@ function FindingCard({
           </p>
         </div>
         {mediaUrls.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap shrink-0">
+          <div className="flex items-center gap-1 flex-wrap mt-1 sm:mt-0 sm:ml-2 shrink-0 sm:self-start">
             {mediaUrls.slice(0, 4).map((url, idx) => {
               const absUrl = toAbsolute(url.trim());
               const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
