@@ -70,8 +70,9 @@ export default function FollowUpTab() {
     };
   }
 
+  // Pedir todos los hallazgos abiertos (limit alto) para que los totales coincidan con Analytics
   const { data: findingsData, isLoading, error: findingsError, refetch: refetchFindings, isRefetching } = useQuery<FindingsResponse>({
-    queryKey: ["/api/findings"],
+    queryKey: ["/api/findings?status=open&limit=500"],
   });
 
   const findings = findingsData?.findings || [];
@@ -151,7 +152,7 @@ export default function FollowUpTab() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/findings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/findings?status=open&limit=500"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
       setCloseDialogOpen(false);
       setCloseComment("");
@@ -189,7 +190,7 @@ export default function FollowUpTab() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/findings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/findings?status=open&limit=500"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks"] });
       setEditDialogOpen(false);
       setEditingFinding(null);
