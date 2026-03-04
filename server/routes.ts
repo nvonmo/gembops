@@ -637,15 +637,18 @@ export async function registerRoutes(
         }
       });
       
-      // 4. Top responsables (solo hallazgos con responsable asignado; los que solo tienen departamento no entran aquí)
-      const findingsByResponsible = new Map<string, number>();
+      // 4. Top responsables: total y abiertos por persona (solo hallazgos con responsable asignado)
+      const findingsByResponsible = new Map<string, { total: number; open: number }>();
       allFindings.forEach(f => {
         if (!f.responsibleId) return;
         const user = userMap.get(f.responsibleId);
         const name = user
           ? [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username
           : "Sin asignar";
-        findingsByResponsible.set(name, (findingsByResponsible.get(name) || 0) + 1);
+        const prev = findingsByResponsible.get(name) || { total: 0, open: 0 };
+        prev.total += 1;
+        if (f.status !== "closed") prev.open += 1;
+        findingsByResponsible.set(name, prev);
       });
       
       // 5. Tasa de cierre y tiempo promedio
@@ -699,7 +702,7 @@ export async function registerRoutes(
           .sort((a, b) => b.count - a.count)
           .slice(0, 10),
         topResponsibles: Array.from(findingsByResponsible.entries())
-          .map(([name, count]) => ({ name, count }))
+          .map(([name, { total, open }]) => ({ name, count: total, openCount: open }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10),
         metrics: {

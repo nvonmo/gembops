@@ -8,7 +8,7 @@ interface AnalyticsData {
   findingsByCategory: { category: string; count: number }[];
   findingsByArea: { area: string; count: number }[];
   findingsByAreaOpen?: { area: string; count: number }[];
-  topResponsibles: { name: string; count: number }[];
+  topResponsibles: { name: string; count: number; openCount?: number }[];
   metrics: {
     totalFindings: number;
     openFindings: number;
@@ -307,7 +307,7 @@ export default function AnalyticsTab() {
         </Card>
       </div>
 
-      {/* Top responsables */}
+      {/* Top responsables: total (azul) y abiertos (naranja) */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -317,12 +317,14 @@ export default function AnalyticsTab() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={topResponsibles} layout="vertical">
+            <BarChart data={topResponsibles.map((r) => ({ ...r, openCount: r.openCount ?? 0 }))} layout="vertical" margin={{ left: 8, right: 8 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
-              <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 12 }} />
+              <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
               <Tooltip />
-              <Bar dataKey="count" fill="#22B2D7" />
+              <Legend />
+              <Bar dataKey="count" fill="#22B2D7" name="Total" />
+              <Bar dataKey="openCount" fill="#f7a83a" name="Abiertos" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
