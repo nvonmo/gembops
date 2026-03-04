@@ -7,6 +7,7 @@ interface AnalyticsData {
   findingsByMonth: { month: string; open: number; closed: number }[];
   findingsByCategory: { category: string; count: number }[];
   findingsByArea: { area: string; count: number }[];
+  findingsByAreaOpen?: { area: string; count: number }[];
   topResponsibles: { name: string; count: number }[];
   metrics: {
     totalFindings: number;
@@ -59,7 +60,7 @@ export default function AnalyticsTab() {
     );
   }
 
-  const { metrics, findingsByMonth, findingsByCategory, findingsByArea, topResponsibles } = data;
+  const { metrics, findingsByMonth, findingsByCategory, findingsByArea, findingsByAreaOpen = [], topResponsibles } = data;
 
   return (
     <div className="space-y-6">
@@ -271,6 +272,37 @@ export default function AnalyticsTab() {
                 />
               </PieChart>
             </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Top áreas con más hallazgos abiertos */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <MapPin className="h-5 w-5" />
+              Top Áreas con Más Hallazgos Abiertos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {findingsByAreaOpen.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-8 text-center">No hay hallazgos abiertos por área</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={findingsByAreaOpen} margin={{ top: 8, right: 8, left: 8, bottom: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis
+                    dataKey="area"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="#f7a83a" name="Abiertos" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

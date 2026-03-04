@@ -627,6 +627,15 @@ export async function registerRoutes(
           findingsByArea.set(area, (findingsByArea.get(area) || 0) + 1);
         }
       });
+      // 3b. Top áreas con más hallazgos abiertos (solo status !== 'closed')
+      const findingsByAreaOpen = new Map<string, number>();
+      allFindings.forEach(f => {
+        if (f.status === "closed") return;
+        const area = f.area || walkMap.get(f.gembaWalkId)?.area;
+        if (area) {
+          findingsByAreaOpen.set(area, (findingsByAreaOpen.get(area) || 0) + 1);
+        }
+      });
       
       // 4. Top responsables (solo hallazgos con responsable asignado; los que solo tienen departamento no entran aquí)
       const findingsByResponsible = new Map<string, number>();
@@ -664,8 +673,8 @@ export async function registerRoutes(
       }).length;
       const complianceRate = closedWithDueDate.length > 0 ? (closedOnTime / closedWithDueDate.length) * 100 : 0;
       
-      // 7. Hallazgos abiertos sin fecha compromiso (pendientes de definir)
-      const pendingDueDateCount = allFindings.filter(f => f.status !== "closed" && !f.dueDate).length;
+      // 7. Solo hallazgos abiertos sin fecha compromiso (los cerrados sin fecha no cuentan)
+      const pendingDueDateCount = allFindings.filter(f => f.status === "open" && !f.dueDate).length;
       
       // 8. Hallazgos vencidos
       const overdueCount = allFindings.filter(f => {
@@ -682,6 +691,10 @@ export async function registerRoutes(
           .map(([category, count]) => ({ category, count }))
           .sort((a, b) => b.count - a.count),
         findingsByArea: Array.from(findingsByArea.entries())
+          .map(([area, count]) => ({ area, count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10),
+        findingsByAreaOpen: Array.from(findingsByAreaOpen.entries())
           .map(([area, count]) => ({ area, count }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10),
