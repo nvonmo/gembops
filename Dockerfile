@@ -13,6 +13,8 @@ COPY . .
 RUN npm run build
 
 ENV NODE_ENV=production
+# Platform may set PORT; default 8080 to match EXPOSE and common PaaS expectations
+ENV PORT=8080
 EXPOSE 8080
 
 CMD ["npm", "start"]

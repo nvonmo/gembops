@@ -60,6 +60,20 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  await esbuild({
+    entryPoints: ["script/ensure-schema.ts"],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outfile: "dist/ensure-schema.cjs",
+    define: {
+      "process.env.NODE_ENV": '"production"',
+    },
+    minify: true,
+    external: externals,
+    logLevel: "info",
+  });
 }
 
 buildAll().catch((err) => {

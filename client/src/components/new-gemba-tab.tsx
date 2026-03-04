@@ -529,7 +529,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">Sin líder asignado</SelectItem>
-                    {usersList.map((user) => {
+                    {usersList.filter((u) => u.id != null && u.id !== "").map((user) => {
                       const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username;
                       return (
                         <SelectItem key={user.id} value={user.id} className="text-base py-3">

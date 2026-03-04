@@ -569,7 +569,7 @@ export default function FindingsTab() {
                         No hay usuarios disponibles
                       </SelectItem>
                     ) : (
-                      usersList.map((user) => {
+                      usersList.filter((u) => u.id != null && u.id !== "").map((user) => {
                         const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username;
                         return (
                           <SelectItem key={user.id} value={user.id} className="text-base py-3">
@@ -796,7 +796,7 @@ export default function FindingsTab() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">Todos</SelectItem>
-                        {usersList.map((user) => {
+                        {usersList.filter((u) => u.id != null && u.id !== "").map((user) => {
                           const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username;
                           return (
                             <SelectItem key={user.id} value={user.id}>{displayName}</SelectItem>
@@ -993,6 +993,8 @@ export default function FindingsTab() {
                   isOverdue={isOverdue}
                   walks={walks}
                   categoriesList={categoriesList}
+                  usersList={usersList}
+                  departmentsList={departmentsList}
                 />
               );
             })}
@@ -1116,6 +1118,8 @@ function FindingCard({
   isOverdue,
   walks,
   categoriesList,
+  usersList,
+  departmentsList,
 }: {
   finding: Finding & { responsibleUser?: User | null; walkLeaderId?: string | null; areas?: string[]; departmentName?: string | null };
   walkArea?: string;
@@ -1123,6 +1127,8 @@ function FindingCard({
   isOverdue: boolean;
   walks: GembaWalk[];
   categoriesList: Array<{ id: number; name: string; isActive?: boolean; includesDescription?: string | null }>;
+  usersList: User[];
+  departmentsList: Array<{ id: number; name: string; isActive: boolean }>;
 }) {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -1140,7 +1146,20 @@ function FindingCard({
   const [editDescription, setEditDescription] = useState(finding.description);
   const [editArea, setEditArea] = useState((finding as any).area || "");
   const [editCategory, setEditCategory] = useState(finding.category);
+  const [editResponsibleId, setEditResponsibleId] = useState(finding.responsibleId ?? "");
+  const [editDepartmentId, setEditDepartmentId] = useState(
+    (finding as any).departmentId != null && (finding as any).departmentId !== "" ? String((finding as any).departmentId) : "__none__"
+  );
   const [editPhotoFiles, setEditPhotoFiles] = useState<File[]>([]);
+  useEffect(() => {
+    if (editOpen) {
+      setEditDescription(finding.description);
+      setEditArea((finding as any).area || "");
+      setEditCategory(finding.category);
+      setEditResponsibleId(finding.responsibleId ?? "");
+      setEditDepartmentId((finding as any).departmentId != null && (finding as any).departmentId !== "" ? String((finding as any).departmentId) : "__none__");
+    }
+  }, [editOpen, finding.id, finding.description, (finding as any).area, finding.category, finding.responsibleId, (finding as any).departmentId]);
   const isResponsible = user?.id === finding.responsibleId;
   const isLeader = (finding as any).walkLeaderId === user?.id;
   const isAdmin = user?.role === "admin";
@@ -1212,6 +1231,8 @@ function FindingCard({
       formData.append("description", editDescription);
       formData.append("area", editArea);
       formData.append("category", editCategory);
+      formData.append("responsibleId", editResponsibleId === "__none__" ? "" : editResponsibleId);
+      formData.append("departmentId", editDepartmentId === "__none__" ? "" : editDepartmentId);
       editPhotoFiles.forEach((file) => formData.append("photos", file));
       const res = await fetch(`/api/findings/${finding.id}`, {
         method: "PATCH",
@@ -1227,6 +1248,7 @@ function FindingCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/findings"] });
       queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
       setEditOpen(false);
       setEditPhotoFiles([]);
       toast({ title: "Hallazgo actualizado" });
@@ -1756,6 +1778,37 @@ function FindingCard({
                   <p className="text-xs text-muted-foreground border-l-2 border-muted pl-2 py-1">Qué incluye: {selected.includesDescription}</p>
                 ) : null;
               })()}
+            </div>
+            <div className="space-y-2">
+              <Label>Responsable</Label>
+              <Select value={editResponsibleId || "__none__"} onValueChange={(v) => setEditResponsibleId(v === "__none__" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar responsable" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin asignar</SelectItem>
+                  {usersList.filter((u) => u.id != null && u.id !== "").map((user) => {
+                    const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username;
+                    return (
+                      <SelectItem key={user.id} value={user.id}>{displayName} ({user.username})</SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Departamento (opcional)</Label>
+              <Select value={editDepartmentId} onValueChange={setEditDepartmentId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar departamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin departamento</SelectItem>
+                  {departmentsList.filter((d) => d.isActive).map((d) => (
+                    <SelectItem key={d.id} value={String(d.id)}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
               <Label>Fotos o videos (opcional, reemplazan las actuales)</Label>

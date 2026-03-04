@@ -1155,7 +1155,7 @@ export async function registerRoutes(
   app.patch("/api/findings/:id", isAuthenticated, uploadFindingPatch, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
-      const { status, closeComment, dueDate, description, area, category, riskIfRepeats } = req.body;
+      const { status, closeComment, dueDate, description, area, category, riskIfRepeats, responsibleId, departmentId } = req.body;
       
       // Get the finding to verify permissions
       const [finding] = await db.select().from(findings).where(eq(findings.id, id));
@@ -1178,12 +1178,14 @@ export async function registerRoutes(
 
       const updateData: any = {};
 
-      // Leader or admin can edit description, area, category, photos and alert "risk if repeats"
+      // Leader or admin can edit description, area, category, photos, responsible, department and alert "risk if repeats"
       if (isLeader || isAdmin) {
         if (description !== undefined) updateData.description = description;
         if (area !== undefined) updateData.area = area || null;
         if (category !== undefined) updateData.category = category;
         if (riskIfRepeats !== undefined) updateData.riskIfRepeats = riskIfRepeats === true || riskIfRepeats === "true";
+        if (responsibleId !== undefined) updateData.responsibleId = responsibleId === "" || responsibleId === "__none__" ? null : responsibleId;
+        if (departmentId !== undefined) updateData.departmentId = departmentId === "" || departmentId === "__none__" ? null : (departmentId ? parseInt(departmentId, 10) : null);
         const photoFiles = (req.files?.photos as Express.Multer.File[]) || [];
         if (photoFiles.length > 0) {
           const photoUrls: string[] = [];
