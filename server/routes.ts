@@ -511,6 +511,49 @@ export async function registerRoutes(
     }
   });
 
+  // Edit Gemba Walk (admin only; leaders cannot edit the walk they were assigned to)
+  app.patch("/api/gemba-walks/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "ID inválido" });
+      }
+      const [walk] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, id));
+      if (!walk) {
+        return res.status(404).json({ message: "Gemba Walk no encontrado" });
+      }
+      const { date, areas: areasList, leaderId: newLeaderId, participantIds } = req.body;
+      if (date) {
+        await db.update(gembaWalks).set({ date }).where(eq(gembaWalks.id, id));
+      }
+      if (areasList && Array.isArray(areasList) && areasList.length > 0) {
+        await db.update(gembaWalks).set({ area: areasList[0] }).where(eq(gembaWalks.id, id));
+        await db.delete(gembaWalkAreas).where(eq(gembaWalkAreas.gembaWalkId, id));
+        await db.insert(gembaWalkAreas).values(
+          areasList.slice(1).map((areaName: string) => ({ gembaWalkId: id, areaName }))
+        );
+      }
+      if (newLeaderId !== undefined) {
+        await db.update(gembaWalks).set({ leaderId: newLeaderId || null }).where(eq(gembaWalks.id, id));
+      }
+      if (participantIds && Array.isArray(participantIds)) {
+        await db.delete(gembaWalkParticipants).where(eq(gembaWalkParticipants.gembaWalkId, id));
+        if (participantIds.length > 0) {
+          await db.insert(gembaWalkParticipants).values(
+            participantIds.map((participantId: string) => ({ gembaWalkId: id, userId: participantId }))
+          );
+        }
+      }
+      const [updated] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, id));
+      const walkAreas = await db.select().from(gembaWalkAreas).where(eq(gembaWalkAreas.gembaWalkId, id));
+      const areasOut = [updated.area, ...walkAreas.map(a => a.areaName)];
+      res.json({ ...updated, areas: areasOut });
+    } catch (error) {
+      console.error("Error updating gemba walk:", error);
+      res.status(500).json({ message: "Error al actualizar el recorrido" });
+    }
+  });
+
   app.delete("/api/gemba-walks/:id", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);

@@ -47,6 +47,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
   const [selectedWalkId, setSelectedWalkId] = useState<number | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editingWalk, setEditingWalk] = useState<any>(null);
 
   const { data: walks = [], isLoading } = useQuery<GembaWalk[]>({
     queryKey: ["/api/gemba-walks"],
@@ -145,6 +146,39 @@ export default function NewGembaTab({ userId }: { userId: string }) {
       toast({ title: "Error al eliminar", description: error.message, variant: "destructive" });
     },
   });
+
+  const updateMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("PATCH", `/api/gemba-walks/${id}`, {
+        date,
+        areas: selectedAreas,
+        leaderId: leaderId || null,
+        participantIds,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/gemba-walks"] });
+      setEditingWalk(null);
+      toast({ title: "Recorrido actualizado" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Sesión expirada", description: "Iniciando sesión...", variant: "destructive" });
+        setTimeout(() => (window.location.href = "/api/login"), 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleOpenEdit = (walk: any) => {
+    setDate(walk.date);
+    setSelectedAreas(walk.areas && walk.areas.length ? walk.areas : (walk.area ? [walk.area] : []));
+    setLeaderId(walk.leaderId || "");
+    setParticipantIds(walk.participants?.map((p: any) => p.id) || []);
+    setEditingWalk(walk);
+  };
 
   return (
     <div className="space-y-5">
@@ -269,6 +303,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                       const isLeader = walk.leaderId === user?.id;
                       const isParticipant = !isLeader && walk.participants?.some((p: any) => p.id === user?.id);
                       const isViewOnly = !isLeader && !isParticipant;
+                      const canEdit = isAdmin;
                       return (
                         <Card
                           key={walk.id}
@@ -289,6 +324,18 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                                   <Eye className="h-3.5 w-3.5" />
                                   Ver detalles
                                 </Button>
+                                {canEdit && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleOpenEdit(walk)}
+                                    className="gap-1.5 h-7 text-xs"
+                                    title="Editar recorrido"
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                    Editar
+                                  </Button>
+                                )}
                                 {(walk as any).isRecurring && (
                                   <Badge variant="outline" className="gap-1 text-xs">
                                     <Repeat className="h-3 w-3" />
@@ -366,6 +413,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
             const walkAreas = walk.areas || [walk.area];
             const walkLeader = walk.leader;
             const walkParticipants = walk.participants || [];
+            const canEdit = isAdmin;
             return (
               <Card key={walk.id} className="p-3 sm:p-4 hover-elevate">
                 <div className="space-y-2">
@@ -401,6 +449,18 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                         <Eye className="h-3.5 w-3.5" />
                         Ver detalles
                       </Button>
+                      {canEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenEdit(walk)}
+                          className="gap-1.5 h-7 text-xs"
+                          title="Editar recorrido"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </Button>
+                      )}
                     </div>
                     {isAdmin && (
                       <Button
@@ -650,6 +710,138 @@ export default function NewGembaTab({ userId }: { userId: string }) {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Edit Gemba Walk Dialog (leader or admin) */}
+      <Dialog open={!!editingWalk} onOpenChange={(open) => !open && setEditingWalk(null)}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base sm:text-lg">Editar recorrido</DialogTitle>
+          </DialogHeader>
+          {editingWalk && (
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-dialog-date" className="text-sm">Fecha programada</Label>
+                <Input
+                  id="edit-dialog-date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="text-base"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm">Áreas a recorrer</Label>
+                {isLoadingAreas ? (
+                  <p className="text-sm text-muted-foreground">Cargando áreas...</p>
+                ) : areasList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No hay áreas disponibles</p>
+                ) : (
+                  <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto">
+                    {areasList.map((a) => (
+                      <div key={a.id} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`edit-dialog-area-${a.id}`}
+                          checked={selectedAreas.includes(a.name)}
+                          onCheckedChange={() => toggleArea(a.name)}
+                        />
+                        <Label htmlFor={`edit-dialog-area-${a.id}`} className="text-sm font-normal cursor-pointer flex-1">
+                          {a.name}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedAreas.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {selectedAreas.map((areaName) => (
+                      <Badge key={areaName} variant="secondary" className="gap-1">
+                        {areaName}
+                        <X className="h-3 w-3 cursor-pointer" onClick={() => toggleArea(areaName)} />
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm flex items-center gap-2">
+                  <UserCheck className="h-4 w-4" />
+                  Líder del Gemba Walk
+                </Label>
+                <Select value={leaderId || "none"} onValueChange={(value) => setLeaderId(value === "none" ? "" : value)}>
+                  <SelectTrigger className="text-base">
+                    <SelectValue placeholder="Seleccionar líder (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin líder asignado</SelectItem>
+                    {usersList.filter((u) => u.id != null && u.id !== "").map((u) => {
+                      const displayName = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username;
+                      return (
+                        <SelectItem key={u.id} value={u.id} className="text-base py-3">
+                          {displayName} ({u.username})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Integrantes
+                </Label>
+                {usersList.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No hay usuarios disponibles</p>
+                ) : (
+                  <div className="space-y-2 border rounded-md p-3 max-h-48 overflow-y-auto">
+                    {usersList.map((u) => {
+                      const displayName = [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username;
+                      return (
+                        <div key={u.id} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`edit-dialog-participant-${u.id}`}
+                            checked={participantIds.includes(u.id)}
+                            onCheckedChange={() => toggleParticipant(u.id)}
+                            disabled={u.id === leaderId}
+                          />
+                          <Label htmlFor={`edit-dialog-participant-${u.id}`} className="text-sm font-normal cursor-pointer flex-1">
+                            {displayName} {u.id === leaderId && <span className="text-muted-foreground">(Líder)</span>}
+                          </Label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                {participantIds.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {participantIds.map((pid) => {
+                      const u = usersList.find(x => x.id === pid);
+                      const displayName = u ? [u.firstName, u.lastName].filter(Boolean).join(" ") || u.username : pid;
+                      return (
+                        <Badge key={pid} variant="secondary" className="gap-1">
+                          {displayName}
+                          <X className="h-3 w-3 cursor-pointer" onClick={() => toggleParticipant(pid)} />
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" onClick={() => setEditingWalk(null)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button
+                  className="flex-1"
+                  disabled={!date || selectedAreas.length === 0 || updateMutation.isPending}
+                  onClick={() => updateMutation.mutate(editingWalk.id)}
+                >
+                  {updateMutation.isPending ? "Guardando..." : "Guardar"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Gemba Walk Detail Dialog */}
       <GembaWalkDetailDialog
