@@ -370,6 +370,11 @@ export default function FollowUpTab() {
                           )}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
+                          {(f.area || (f as FindingWithUser).areas?.[0]) && (
+                            <Badge variant="outline" className="text-xs max-w-full sm:max-w-xs whitespace-normal break-words text-left">
+                              {f.area || (f as FindingWithUser).areas?.[0]}
+                            </Badge>
+                          )}
                           <Badge variant="secondary" className="text-xs max-w-full sm:max-w-xs whitespace-normal break-words text-left">{f.category}</Badge>
                           {f.dueDate ? (
                             <span className="flex items-center gap-1 text-xs text-muted-foreground">
