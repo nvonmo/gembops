@@ -48,6 +48,53 @@ interface FilterState {
 
 const STORAGE_KEY = "gemba-findings-filters";
 
+const DEFAULT_FILTERS: FilterState = {
+  search: "",
+  status: "",
+  category: "",
+  responsibleId: "",
+  area: "",
+  sortBy: "createdAt",
+  sortOrder: "desc",
+};
+
+function parseFiltersFromStorage(): FilterState {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return DEFAULT_FILTERS;
+    const parsed = JSON.parse(saved);
+    if (!parsed || typeof parsed !== "object") return DEFAULT_FILTERS;
+    return {
+      search: typeof parsed.search === "string" ? parsed.search : "",
+      status: typeof parsed.status === "string" ? parsed.status : "",
+      category: typeof parsed.category === "string" ? parsed.category : "",
+      responsibleId: typeof parsed.responsibleId === "string" ? parsed.responsibleId : "",
+      area: typeof parsed.area === "string" ? parsed.area : "",
+      sortBy: typeof parsed.sortBy === "string" && ["createdAt", "dueDate", "description", "category", "status"].includes(parsed.sortBy) ? parsed.sortBy : "createdAt",
+      sortOrder: parsed.sortOrder === "asc" || parsed.sortOrder === "desc" ? parsed.sortOrder : "desc",
+    };
+  } catch {
+    return DEFAULT_FILTERS;
+  }
+}
+
+function parseSavedFiltersFromStorage(): Array<{ name: string; filters: FilterState }> {
+  try {
+    const saved = localStorage.getItem(`${STORAGE_KEY}-favorites`);
+    if (!saved) return [];
+    const parsed = JSON.parse(saved);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item: any) => item && typeof item.name === "string" && item.filters && typeof item.filters === "object"
+    ).map((item: any) => ({
+      name: item.name,
+      filters: { ...DEFAULT_FILTERS, ...item.filters },
+    }));
+  } catch {
+    return [];
+  }
+}
+
 export default function FindingsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -63,26 +110,12 @@ export default function FindingsTab() {
   const [recognition, setRecognition] = useState<any>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Filters and search state
-  const [filters, setFilters] = useState<FilterState>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : {
-      search: "",
-      status: "",
-      category: "",
-      responsibleId: "",
-      area: "",
-      sortBy: "createdAt",
-      sortOrder: "desc" as const,
-    };
-  });
+  // Filters and search state (safe parse to avoid blank screen on corrupt localStorage)
+  const [filters, setFilters] = useState<FilterState>(parseFiltersFromStorage);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
-  const [savedFilters, setSavedFilters] = useState<Array<{ name: string; filters: FilterState }>>(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}-favorites`);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [savedFilters, setSavedFilters] = useState<Array<{ name: string; filters: FilterState }>>(parseSavedFiltersFromStorage);
 
   const { user } = useAuth();
   const { data: allWalks = [] } = useQuery<GembaWalk[]>({
@@ -214,6 +247,13 @@ export default function FindingsTab() {
       return areas;
     }).filter(Boolean)
   )).sort();
+
+  // Normalize filter values for Select: only pass values that exist in options to avoid blank/crash (Radix)
+  const validUserIds = new Set((usersList || []).filter((u) => u.id != null && u.id !== "").map((u) => u.id));
+  const statusSelectValue = filters.status === "open" || filters.status === "closed" ? filters.status : "all";
+  const categorySelectValue = filters.category && uniqueCategories.includes(filters.category) ? filters.category : "all";
+  const responsibleSelectValue = filters.responsibleId && validUserIds.has(filters.responsibleId) ? filters.responsibleId : "all";
+  const areaSelectValue = filters.area && uniqueAreas.includes(filters.area) ? filters.area : "all";
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -759,7 +799,7 @@ export default function FindingsTab() {
                   {/* Status Filter */}
                   <div className="space-y-2">
                     <Label className="text-xs">Estado</Label>
-                    <Select value={filters.status || "all"} onValueChange={(value) => saveFilters({ ...filters, status: value === "all" ? "" : value })}>
+                    <Select value={statusSelectValue} onValueChange={(value) => saveFilters({ ...filters, status: value === "all" ? "" : value })}>
                       <SelectTrigger className="h-8">
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
@@ -774,7 +814,7 @@ export default function FindingsTab() {
                   {/* Category Filter */}
                   <div className="space-y-2">
                     <Label className="text-xs">Categoría</Label>
-                    <Select value={filters.category || "all"} onValueChange={(value) => saveFilters({ ...filters, category: value === "all" ? "" : value })}>
+                    <Select value={categorySelectValue} onValueChange={(value) => saveFilters({ ...filters, category: value === "all" ? "" : value })}>
                       <SelectTrigger className="h-8">
                         <SelectValue placeholder="Todas" />
                       </SelectTrigger>
@@ -790,7 +830,7 @@ export default function FindingsTab() {
                   {/* Responsible Filter */}
                   <div className="space-y-2">
                     <Label className="text-xs">Responsable</Label>
-                    <Select value={filters.responsibleId || "all"} onValueChange={(value) => saveFilters({ ...filters, responsibleId: value === "all" ? "" : value })}>
+                    <Select value={responsibleSelectValue} onValueChange={(value) => saveFilters({ ...filters, responsibleId: value === "all" ? "" : value })}>
                       <SelectTrigger className="h-8">
                         <SelectValue placeholder="Todos" />
                       </SelectTrigger>
@@ -809,7 +849,7 @@ export default function FindingsTab() {
                   {/* Area Filter */}
                   <div className="space-y-2">
                     <Label className="text-xs">Área</Label>
-                    <Select value={filters.area || "all"} onValueChange={(value) => saveFilters({ ...filters, area: value === "all" ? "" : value })}>
+                    <Select value={areaSelectValue} onValueChange={(value) => saveFilters({ ...filters, area: value === "all" ? "" : value })}>
                       <SelectTrigger className="h-8">
                         <SelectValue placeholder="Todas" />
                       </SelectTrigger>
