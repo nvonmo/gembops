@@ -522,35 +522,58 @@ export async function registerRoutes(
       if (!walk) {
         return res.status(404).json({ message: "Gemba Walk no encontrado" });
       }
-      const { date, areas: areasList, leaderId: newLeaderId, participantIds } = req.body;
-      if (date) {
-        await db.update(gembaWalks).set({ date }).where(eq(gembaWalks.id, id));
+      const { date: dateRaw, areas: areasList, leaderId: newLeaderId, participantIds } = req.body || {};
+
+      // Normalize date to YYYY-MM-DD (date input or API may send string with time)
+      const dateStr = typeof dateRaw === "string" && dateRaw.trim().length >= 10
+        ? dateRaw.trim().slice(0, 10)
+        : null;
+      if (dateStr) {
+        await db.update(gembaWalks).set({ date: dateStr }).where(eq(gembaWalks.id, id));
       }
+
       if (areasList && Array.isArray(areasList) && areasList.length > 0) {
-        await db.update(gembaWalks).set({ area: areasList[0] }).where(eq(gembaWalks.id, id));
+        const firstArea = typeof areasList[0] === "string" ? areasList[0].trim() : String(areasList[0] ?? "").trim();
+        if (!firstArea) {
+          return res.status(400).json({ message: "Al menos un área es requerida" });
+        }
+        await db.update(gembaWalks).set({ area: firstArea }).where(eq(gembaWalks.id, id));
         await db.delete(gembaWalkAreas).where(eq(gembaWalkAreas.gembaWalkId, id));
-        await db.insert(gembaWalkAreas).values(
-          areasList.slice(1).map((areaName: string) => ({ gembaWalkId: id, areaName }))
-        );
-      }
-      if (newLeaderId !== undefined) {
-        await db.update(gembaWalks).set({ leaderId: newLeaderId || null }).where(eq(gembaWalks.id, id));
-      }
-      if (participantIds && Array.isArray(participantIds)) {
-        await db.delete(gembaWalkParticipants).where(eq(gembaWalkParticipants.gembaWalkId, id));
-        if (participantIds.length > 0) {
-          await db.insert(gembaWalkParticipants).values(
-            participantIds.map((participantId: string) => ({ gembaWalkId: id, userId: participantId }))
+        const extraAreas = areasList.slice(1)
+          .map((a: unknown) => (typeof a === "string" ? a.trim() : ""))
+          .filter((name: string) => name.length > 0);
+        if (extraAreas.length > 0) {
+          await db.insert(gembaWalkAreas).values(
+            extraAreas.map((areaName: string) => ({ gembaWalkId: id, areaName }))
           );
         }
       }
+
+      if (newLeaderId !== undefined) {
+        const leaderVal = newLeaderId === "" || newLeaderId == null ? null : String(newLeaderId);
+        await db.update(gembaWalks).set({ leaderId: leaderVal }).where(eq(gembaWalks.id, id));
+      }
+
+      if (participantIds && Array.isArray(participantIds)) {
+        await db.delete(gembaWalkParticipants).where(eq(gembaWalkParticipants.gembaWalkId, id));
+        const validIds = participantIds.filter((pid: unknown) => typeof pid === "string" && pid.trim().length > 0);
+        if (validIds.length > 0) {
+          await db.insert(gembaWalkParticipants).values(
+            validIds.map((userId: string) => ({ gembaWalkId: id, userId: userId.trim() }))
+          );
+        }
+      }
+
       const [updated] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, id));
       const walkAreas = await db.select().from(gembaWalkAreas).where(eq(gembaWalkAreas.gembaWalkId, id));
       const areasOut = [updated.area, ...walkAreas.map(a => a.areaName)];
       res.json({ ...updated, areas: areasOut });
-    } catch (error) {
-      console.error("Error updating gemba walk:", error);
-      res.status(500).json({ message: "Error al actualizar el recorrido" });
+    } catch (error: any) {
+      const errMsg = error?.message ?? String(error);
+      console.error("Error updating gemba walk:", errMsg, error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Error al actualizar el recorrido" });
+      }
     }
   });
 

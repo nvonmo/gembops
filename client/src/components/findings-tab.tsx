@@ -1373,6 +1373,7 @@ function FindingCard({
                   onClick={() => setDeleteOpen(true)}
                   disabled={deleteMutation.isPending}
                   title="Eliminar hallazgo"
+                  data-testid="button-delete-finding"
                 >
                   <Trash2 className="h-3 w-3" />
                   Eliminar
@@ -1914,6 +1915,24 @@ function FindingCard({
                 {editFindingMutation.isPending ? "Guardando..." : "Guardar"}
               </Button>
             </div>
+            {isAdmin && (
+              <div className="pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-destructive border-destructive/50 hover:bg-destructive/10 hover:border-destructive"
+                  onClick={() => {
+                    setEditOpen(false);
+                    setDeleteOpen(true);
+                  }}
+                  disabled={deleteMutation.isPending}
+                  data-testid="button-delete-finding-from-edit"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Eliminar hallazgo
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
