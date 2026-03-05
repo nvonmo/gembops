@@ -13,7 +13,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download, AlertTriangle, HelpCircle } from "lucide-react";
+import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download, AlertTriangle, HelpCircle, Trash2 } from "lucide-react";
+import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
@@ -1202,7 +1203,8 @@ function FindingCard({
   }, [editOpen, finding.id, finding.description, (finding as any).area, finding.category, finding.responsibleId, (finding as any).departmentId]);
   const isResponsible = user?.id === finding.responsibleId;
   const isLeader = (finding as any).walkLeaderId === user?.id;
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role != null && String(user.role).toLowerCase() === "admin";
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [walk] = walks.filter(w => w.id === finding.gembaWalkId);
   const isCreator = walk?.createdBy === user?.id;
   /** Quién puede cambiar estatus/cerrar: responsable, creador del walk o admin (backend solo permite a estos). */
@@ -1303,6 +1305,31 @@ function FindingCard({
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/findings/${finding.id}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Error al eliminar");
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/findings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/notifications/pending-count"] });
+      setDeleteOpen(false);
+      toast({ title: "Hallazgo eliminado" });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({ title: "Sesión expirada", description: "Iniciando sesión...", variant: "destructive" });
+        setTimeout(() => (window.location.href = "/api/login"), 500);
+        return;
+      }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleSetDueDate = () => {
     if (!dueDate) {
       toast({ title: "Error", description: "Debes seleccionar una fecha", variant: "destructive" });
@@ -1336,6 +1363,19 @@ function FindingCard({
                 >
                   <Edit className="h-3 w-3" />
                   Editar
+                </Button>
+              )}
+              {isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 text-xs gap-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteOpen(true)}
+                  disabled={deleteMutation.isPending}
+                  title="Eliminar hallazgo"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  Eliminar
                 </Button>
               )}
               <Badge variant={statusInfo.variant} className="text-xs">
@@ -1877,6 +1917,27 @@ function FindingCard({
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar hallazgo</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Estás seguro de que deseas eliminar este hallazgo? Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancelar</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={deleteMutation.isPending}
+              onClick={() => deleteMutation.mutate()}
+            >
+              {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

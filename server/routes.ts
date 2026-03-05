@@ -1085,6 +1085,27 @@ export async function registerRoutes(
     }
   });
 
+  app.delete("/api/findings/:id", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "ID de hallazgo inválido" });
+      }
+      const [finding] = await db.select({ id: findings.id }).from(findings).where(eq(findings.id, id));
+      if (!finding) {
+        return res.status(404).json({ message: "Hallazgo no encontrado" });
+      }
+      await db.delete(notifications).where(eq(notifications.relatedFindingId, id));
+      await db.delete(findings).where(eq(findings.id, id));
+      res.status(200).json({ message: "Hallazgo eliminado" });
+    } catch (error: any) {
+      console.error("Error deleting finding:", error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Error al eliminar hallazgo" });
+      }
+    }
+  });
+
   app.post("/api/findings", isAuthenticated, uploadMemory.array("photos", 10), async (req: any, res) => {
     try {
       const { gembaWalkId, area, category, description, responsibleId, status, departmentId } = req.body;
