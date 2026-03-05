@@ -34,7 +34,7 @@ export default function NewGembaTab({ userId }: { userId: string }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   
-  const isAdmin = user?.role === "admin";
+  const isAdmin = user?.role != null && String(user.role).toLowerCase() === "admin";
   const [date, setDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [leaderId, setLeaderId] = useState("");
@@ -331,9 +331,10 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                                     onClick={() => handleOpenEdit(walk)}
                                     className="gap-1.5 h-7 text-xs"
                                     title="Editar recorrido"
+                                    data-testid={`button-edit-walk-${walk.id}`}
                                   >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                    Editar
+                                    <Pencil className="h-3.5 w-3.5 shrink-0" />
+                                    <span>Editar</span>
                                   </Button>
                                 )}
                                 {(walk as any).isRecurring && (
@@ -456,9 +457,10 @@ export default function NewGembaTab({ userId }: { userId: string }) {
                           onClick={() => handleOpenEdit(walk)}
                           className="gap-1.5 h-7 text-xs"
                           title="Editar recorrido"
+                          data-testid={`button-edit-walk-${walk.id}`}
                         >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Editar
+                          <Pencil className="h-3.5 w-3.5 shrink-0" />
+                          <span>Editar</span>
                         </Button>
                       )}
                     </div>
