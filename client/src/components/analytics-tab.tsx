@@ -209,44 +209,47 @@ export default function AnalyticsTab() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {/* Hallazgos por categoría - tarjeta más alta para que no se corten las etiquetas */}
-        <Card className="min-h-[440px] flex flex-col">
+      <div className="grid grid-cols-1 gap-6">
+        {/* Hallazgos por categoría: barras horizontales para que las etiquetas no se solapen */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Tag className="h-5 w-5" />
               Hallazgos por Categoría
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 min-h-[360px]">
-            <ResponsiveContainer width="100%" height={360}>
-              <BarChart data={findingsByCategory.slice(0, 8)} margin={{ top: 8, right: 8, left: 8, bottom: 120 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis 
-                  dataKey="category" 
-                  angle={-45}
-                  textAnchor="end"
-                  height={110}
+          <CardContent>
+            <ResponsiveContainer width="100%" height={Math.max(280, findingsByCategory.slice(0, 10).length * 36)}>
+              <BarChart
+                data={findingsByCategory.slice(0, 10)}
+                layout="vertical"
+                margin={{ top: 8, right: 24, left: 8, bottom: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" />
+                <YAxis
+                  type="category"
+                  dataKey="category"
+                  width={260}
                   tick={{ fontSize: 11 }}
-                  interval={0}
+                  tickFormatter={(value) => (value.length > 48 ? value.slice(0, 47) + "…" : value)}
                 />
-                <YAxis width={32} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#22B2D7" />
+                <Bar dataKey="count" fill="#22B2D7" name="Hallazgos" barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Hallazgos por área - tarjeta más alta para leyenda */}
-        <Card className="min-h-[440px] flex flex-col">
+        {/* Top Áreas con Más Hallazgos (pastel) */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="h-5 w-5" />
               Top Áreas con Más Hallazgos
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-1 min-h-0 flex flex-col">
+          <CardContent>
             <ResponsiveContainer width="100%" height={280}>
               <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
                 <Pie
@@ -268,7 +271,7 @@ export default function AnalyticsTab() {
               </PieChart>
             </ResponsiveContainer>
             {/* Leyenda debajo con espaciado para que no se solapen */}
-            <div className="flex flex-wrap gap-x-5 gap-y-3 mt-4 pt-3 border-t min-w-0 flex-1">
+            <div className="flex flex-wrap gap-x-5 gap-y-3 mt-4 pt-3 border-t">
               {findingsByArea.map((entry, index) => (
                 <div key={entry.area} className="flex items-start gap-2 min-w-0 max-w-full">
                   <span
@@ -283,8 +286,8 @@ export default function AnalyticsTab() {
           </CardContent>
         </Card>
 
-        {/* Top áreas con más hallazgos abiertos */}
-        <Card className="lg:col-span-2">
+        {/* Top áreas con más hallazgos abiertos - barras horizontales para etiquetas legibles */}
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="h-5 w-5" />
@@ -295,19 +298,23 @@ export default function AnalyticsTab() {
             {findingsByAreaOpen.length === 0 ? (
               <p className="text-sm text-muted-foreground py-8 text-center">No hay hallazgos abiertos por área</p>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={findingsByAreaOpen} margin={{ top: 8, right: 8, left: 8, bottom: 60 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis
+              <ResponsiveContainer width="100%" height={Math.max(260, findingsByAreaOpen.length * 40)}>
+                <BarChart
+                  data={findingsByAreaOpen}
+                  layout="vertical"
+                  margin={{ top: 8, right: 24, left: 8, bottom: 8 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis
+                    type="category"
                     dataKey="area"
-                    angle={-45}
-                    textAnchor="end"
-                    height={80}
-                    tick={{ fontSize: 11 }}
+                    width={200}
+                    tick={{ fontSize: 12 }}
+                    tickFormatter={(value) => (value.length > 35 ? value.slice(0, 34) + "…" : value)}
                   />
-                  <YAxis />
                   <Tooltip />
-                  <Bar dataKey="count" fill="#f7a83a" name="Abiertos" />
+                  <Bar dataKey="count" fill="#f7a83a" name="Abiertos" barSize={28} />
                 </BarChart>
               </ResponsiveContainer>
             )}
