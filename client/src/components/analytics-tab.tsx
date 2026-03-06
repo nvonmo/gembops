@@ -24,6 +24,17 @@ interface AnalyticsData {
 // Paleta de la app: primary #22B2D7, azul claro, grises, acento naranja
 const CHART_COLORS = ['#22B2D7', '#5BC9E0', '#8c8c8c', '#f7a83a', '#2e2e2e', '#6ab7d8', '#737373', '#e09830'];
 
+/** Solo el nombre de la categoría, sin la descripción (ej. "Instalaciones (Paredes...)" → "Instalaciones") */
+function categoryNameOnly(label: string): string {
+  if (!label || typeof label !== "string") return label;
+  const s = label.trim();
+  const idxParen = s.indexOf(" (");
+  if (idxParen > 0) return s.slice(0, idxParen).trim();
+  const idxDash = s.indexOf(" -");
+  if (idxDash > 0) return s.slice(0, idxDash).trim();
+  return s;
+}
+
 export default function AnalyticsTab() {
   const { data, isLoading, error } = useQuery<AnalyticsData>({
     queryKey: ["/api/analytics"],
@@ -230,9 +241,9 @@ export default function AnalyticsTab() {
                 <YAxis
                   type="category"
                   dataKey="category"
-                  width={260}
-                  tick={{ fontSize: 11 }}
-                  tickFormatter={(value) => (value.length > 48 ? value.slice(0, 47) + "…" : value)}
+                  width={220}
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => categoryNameOnly(value)}
                 />
                 <Tooltip />
                 <Bar dataKey="count" fill="#22B2D7" name="Hallazgos" barSize={24} />
