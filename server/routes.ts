@@ -1374,7 +1374,32 @@ export async function registerRoutes(
             .where(eq(notifications.relatedFindingId, id));
         }
       }
-      
+
+      // When responsible is changed: mark old assignee's notification as completed and notify new assignee
+      const newResponsibleId = updateData.responsibleId !== undefined
+        ? (updateData.responsibleId === "" || updateData.responsibleId === "__none__" ? null : updateData.responsibleId)
+        : undefined;
+      const previousResponsibleId = finding.responsibleId ?? null;
+      if (newResponsibleId !== undefined && String(newResponsibleId || "") !== String(previousResponsibleId || "")) {
+        await db
+          .update(notifications)
+          .set({ isActionCompleted: true })
+          .where(and(eq(notifications.relatedFindingId, id), eq(notifications.type, "finding_assigned")));
+        if (newResponsibleId) {
+          const areaForMsg = updateData.area ?? finding.area ?? "desconocida";
+          const categoryForMsg = updateData.category ?? finding.category ?? "";
+          await db.insert(notifications).values({
+            userId: newResponsibleId,
+            type: "finding_assigned",
+            title: "Nuevo hallazgo asignado",
+            message: `Se te ha asignado un hallazgo en el área ${areaForMsg}. Categoría: ${categoryForMsg}. Por favor establece la fecha de compromiso si aplica.`,
+            relatedFindingId: id,
+            isActionRequired: true,
+            isActionCompleted: false,
+          });
+        }
+      }
+
       const updatedFinding = await storage.updateFinding(id, updateData);
       const photoUrlsRaw = updatedFinding?.photoUrls ? (typeof updatedFinding.photoUrls === "string" ? JSON.parse(updatedFinding.photoUrls) : updatedFinding.photoUrls) : [];
       const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : (updatedFinding?.photoUrl ? [resolvePhotoUrl(updatedFinding.photoUrl)] : []);

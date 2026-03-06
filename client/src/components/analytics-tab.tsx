@@ -246,16 +246,16 @@ export default function AnalyticsTab() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart margin={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <ResponsiveContainer width="100%" height={320}>
+              <PieChart margin={{ top: 16, right: 140, bottom: 16, left: 16 }}>
                 <Pie
                   data={findingsByArea}
-                  cx="50%"
-                  cy="45%"
+                  cx="35%"
+                  cy="50%"
                   nameKey="area"
                   labelLine={false}
                   label={false}
-                  outerRadius={80}
+                  outerRadius={90}
                   fill="#22B2D7"
                   dataKey="count"
                 >
@@ -265,9 +265,10 @@ export default function AnalyticsTab() {
                 </Pie>
                 <Tooltip />
                 <Legend
-                  verticalAlign="bottom"
+                  verticalAlign="middle"
+                  align="right"
                   layout="vertical"
-                  wrapperStyle={{ paddingTop: 12 }}
+                  wrapperStyle={{ paddingLeft: 8 }}
                   formatter={(value) => <span className="text-xs">{value}</span>}
                 />
               </PieChart>

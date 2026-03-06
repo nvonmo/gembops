@@ -332,42 +332,59 @@ export default function FollowUpTab() {
                       <div className="flex-1 min-w-0 space-y-1">
                         <div className="flex items-start gap-2">
                           <p className="text-sm leading-relaxed flex-1">{f.description}</p>
-                          {f.photoUrl && (
-                            (() => {
-                              const toAbs = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
-                              const absUrl = toAbs(f.photoUrl.trim());
-                              const isVideo = f.photoUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || f.photoUrl.includes("video");
-                              const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
-                              const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
-                              return isVideo ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleImageClick(f.photoUrl!)}
-                                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0"
-                                >
-                                  <video
-                                    src={videoSrc}
-                                    referrerPolicy="no-referrer"
-                                    className="w-full h-full object-cover pointer-events-none"
-                                    muted
-                                    playsInline
-                                  />
-                                </button>
-                              ) : (
-                                <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border shrink-0 overflow-hidden bg-muted">
-                                  <img
-                                    src={absUrl}
-                                    alt="Hallazgo"
-                                    loading="lazy"
-                                    decoding="async"
-                                    referrerPolicy="no-referrer"
-                                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => handleImageClick(f.photoUrl!)}
-                                  />
-                                </div>
-                              );
-                            })()
-                          )}
+                          {(() => {
+                            const mediaUrls: string[] = (f as FindingWithUser & { photoUrls?: string[] }).photoUrls?.length
+                              ? (f as FindingWithUser & { photoUrls?: string[] }).photoUrls!
+                              : f.photoUrl
+                                ? [f.photoUrl]
+                                : [];
+                            const toAbs = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
+                            if (mediaUrls.length === 0) return null;
+                            return (
+                              <div className="flex gap-1.5 flex-wrap shrink-0">
+                                {mediaUrls.map((url, idx) => {
+                                  const u = url?.trim();
+                                  if (!u) return null;
+                                  const absUrl = toAbs(u);
+                                  const isVideo = u.match(/\.(mp4|webm|ogg|mov|avi)$/i) || u.includes("video");
+                                  const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
+                                  const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
+                                  return (
+                                    <button
+                                      key={idx}
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        handleImageClick(u);
+                                      }}
+                                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 focus:outline-none focus:ring-2 focus:ring-ring"
+                                      title="Ver imagen"
+                                    >
+                                      {isVideo ? (
+                                        <video
+                                          src={videoSrc}
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover pointer-events-none"
+                                          muted
+                                          playsInline
+                                        />
+                                      ) : (
+                                        <img
+                                          src={absUrl}
+                                          alt="Hallazgo"
+                                          loading="lazy"
+                                          decoding="async"
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover pointer-events-none"
+                                        />
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                         <div className="flex items-center gap-2 flex-wrap">
                           {(f.area || (f as FindingWithUser).areas?.[0]) && (
@@ -412,17 +429,25 @@ export default function FollowUpTab() {
                                   />
                                 </button>
                               ) : (
-                                <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleImageClick(f.closeEvidenceUrl!);
+                                  }}
+                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block focus:outline-none focus:ring-2 focus:ring-ring"
+                                  title="Ver evidencia"
+                                >
                                   <img
                                     src={absUrl}
                                     alt="Evidencia de cierre"
                                     loading="lazy"
                                     decoding="async"
                                     referrerPolicy="no-referrer"
-                                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                                    onClick={() => handleImageClick(f.closeEvidenceUrl!)}
+                                    className="w-full h-full object-cover pointer-events-none"
                                   />
-                                </div>
+                                </button>
                               );
                             })()}
                           </div>
