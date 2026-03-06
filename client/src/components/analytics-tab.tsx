@@ -209,27 +209,28 @@ export default function AnalyticsTab() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Hallazgos por categoría */}
-        <Card>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Hallazgos por categoría - tarjeta más alta para que no se corten las etiquetas */}
+        <Card className="min-h-[440px] flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Tag className="h-5 w-5" />
               Hallazgos por Categoría
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={findingsByCategory.slice(0, 8)}>
+          <CardContent className="flex-1 min-h-[360px]">
+            <ResponsiveContainer width="100%" height={360}>
+              <BarChart data={findingsByCategory.slice(0, 8)} margin={{ top: 8, right: 8, left: 8, bottom: 120 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis 
                   dataKey="category" 
                   angle={-45}
                   textAnchor="end"
-                  height={100}
-                  tick={{ fontSize: 12 }}
+                  height={110}
+                  tick={{ fontSize: 11 }}
+                  interval={0}
                 />
-                <YAxis />
+                <YAxis width={32} />
                 <Tooltip />
                 <Bar dataKey="count" fill="#22B2D7" />
               </BarChart>
@@ -237,15 +238,15 @@ export default function AnalyticsTab() {
           </CardContent>
         </Card>
 
-        {/* Hallazgos por área */}
-        <Card>
+        {/* Hallazgos por área - tarjeta más alta para leyenda */}
+        <Card className="min-h-[440px] flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <MapPin className="h-5 w-5" />
               Top Áreas con Más Hallazgos
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 min-h-0 flex flex-col">
             <ResponsiveContainer width="100%" height={280}>
               <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
                 <Pie
@@ -267,15 +268,15 @@ export default function AnalyticsTab() {
               </PieChart>
             </ResponsiveContainer>
             {/* Leyenda debajo con espaciado para que no se solapen */}
-            <div className="flex flex-wrap gap-x-5 gap-y-3 mt-4 pt-3 border-t">
+            <div className="flex flex-wrap gap-x-5 gap-y-3 mt-4 pt-3 border-t min-w-0 flex-1">
               {findingsByArea.map((entry, index) => (
-                <div key={entry.area} className="flex items-start gap-2">
+                <div key={entry.area} className="flex items-start gap-2 min-w-0 max-w-full">
                   <span
                     className="shrink-0 w-3 h-3 rounded-sm mt-0.5"
                     style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
                     aria-hidden
                   />
-                  <span className="text-xs break-words max-w-[200px]" title={entry.area}>{entry.area}</span>
+                  <span className="text-xs break-words max-w-[220px] min-w-0" title={entry.area}>{entry.area}</span>
                 </div>
               ))}
             </div>
