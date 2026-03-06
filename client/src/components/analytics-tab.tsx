@@ -246,16 +246,16 @@ export default function AnalyticsTab() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={320}>
-              <PieChart margin={{ top: 16, right: 140, bottom: 16, left: 16 }}>
+            <ResponsiveContainer width="100%" height={280}>
+              <PieChart margin={{ top: 16, right: 16, bottom: 16, left: 16 }}>
                 <Pie
                   data={findingsByArea}
-                  cx="35%"
+                  cx="50%"
                   cy="50%"
                   nameKey="area"
                   labelLine={false}
                   label={false}
-                  outerRadius={90}
+                  outerRadius={100}
                   fill="#22B2D7"
                   dataKey="count"
                 >
@@ -264,15 +264,21 @@ export default function AnalyticsTab() {
                   ))}
                 </Pie>
                 <Tooltip />
-                <Legend
-                  verticalAlign="middle"
-                  align="right"
-                  layout="vertical"
-                  wrapperStyle={{ paddingLeft: 8 }}
-                  formatter={(value) => <span className="text-xs">{value}</span>}
-                />
               </PieChart>
             </ResponsiveContainer>
+            {/* Leyenda debajo con espaciado para que no se solapen */}
+            <div className="flex flex-wrap gap-x-5 gap-y-3 mt-4 pt-3 border-t">
+              {findingsByArea.map((entry, index) => (
+                <div key={entry.area} className="flex items-start gap-2">
+                  <span
+                    className="shrink-0 w-3 h-3 rounded-sm mt-0.5"
+                    style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+                    aria-hidden
+                  />
+                  <span className="text-xs break-words max-w-[200px]" title={entry.area}>{entry.area}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
 
