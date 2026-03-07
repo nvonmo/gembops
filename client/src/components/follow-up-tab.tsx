@@ -463,7 +463,7 @@ export default function FollowUpTab() {
                             Abierto
                           </Badge>
                         )}
-                        {(f.canClose ?? user?.id === f.responsibleId) && f.status !== "closed" && (
+                        {(f.canClose === true || user?.id === f.responsibleId) && f.status !== "closed" && (
                           <Button
                             size="sm"
                             variant="default"

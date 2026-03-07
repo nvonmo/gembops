@@ -988,9 +988,11 @@ export async function registerRoutes(
         const currentUserDeptId = currentUserForCanClose?.departmentId ?? null;
         const isResponsible = f.responsibleId === userId;
         const isAdmin = currentUserForCanClose?.role === "admin";
-        const isCreator = walk?.createdBy === userId;
-        const isSameDepartmentAsResponsible = currentUserDeptId != null && responsibleDeptId != null && currentUserDeptId === responsibleDeptId;
-        const canClose = isResponsible || isAdmin || isCreator || isSameDepartmentAsResponsible;
+        // Same department only when both have a valid department ID (positive integer) and they match
+        const cu = Number(currentUserDeptId);
+        const ru = Number(responsibleDeptId);
+        const isSameDepartmentAsResponsible = Number.isInteger(cu) && cu > 0 && Number.isInteger(ru) && ru > 0 && cu === ru;
+        const canClose = isResponsible || isAdmin || isSameDepartmentAsResponsible;
         const photoUrlsRaw = f.photoUrls ? (typeof f.photoUrls === "string" ? JSON.parse(f.photoUrls) : f.photoUrls) : [];
         const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : [];
         const firstPhoto = photoUrlsResolved.length > 0 ? photoUrlsResolved[0] : resolvePhotoUrl(f.photoUrl);
@@ -1300,19 +1302,18 @@ export async function registerRoutes(
       const [walk] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, finding.gembaWalkId));
       const isLeader = walk?.leaderId === userId;
       const isResponsible = finding.responsibleId === userId;
-      const isCreator = walk?.createdBy === userId;
-      // Join: responsible user → their department. Anyone in the same department as the responsible can close (even if the finding has no departmentId).
+      // Join: responsible user → their department. Only responsible, admin, or same department as responsible can close.
       let responsibleUserDepartmentId: number | null = null;
       if (finding.responsibleId) {
         const [respUser] = await db.select({ departmentId: users.departmentId }).from(users).where(eq(users.id, finding.responsibleId));
         responsibleUserDepartmentId = respUser?.departmentId ?? null;
       }
       const currentUserDeptId = currentUser?.departmentId ?? null;
-      const isSameDepartmentAsResponsible =
-        currentUserDeptId != null &&
-        responsibleUserDepartmentId != null &&
-        currentUserDeptId === responsibleUserDepartmentId;
-      const canCloseFinding = isResponsible || isAdmin || isCreator || isSameDepartmentAsResponsible;
+      const cu = Number(currentUserDeptId);
+      const ru = Number(responsibleUserDepartmentId);
+      const isSameDepartmentAsResponsible = Number.isInteger(cu) && cu > 0 && Number.isInteger(ru) && ru > 0 && cu === ru;
+      const canCloseFinding = isResponsible || isAdmin || isSameDepartmentAsResponsible;
+      const isCreator = walk?.createdBy === userId;
       const canUpdate = isLeader || isResponsible || isCreator || isAdmin || isSameDepartmentAsResponsible;
       
       if (!canUpdate) {
@@ -1364,7 +1365,7 @@ export async function registerRoutes(
       if (isResponsible || isCreator || isAdmin || isSameDepartmentAsResponsible) {
         if (status) {
           if (status === "closed" && !canCloseFinding) {
-            return res.status(403).json({ message: "Solo el responsable, un administrador, el creador del recorrido o alguien del mismo departamento puede cerrar el hallazgo" });
+            return res.status(403).json({ message: "Solo el responsable, un administrador o alguien del mismo departamento que el responsable puede cerrar el hallazgo" });
           }
           updateData.status = status;
           if (status === "closed") {
@@ -1563,7 +1564,7 @@ export async function registerRoutes(
         const closedByUser = (f as any).closedByUserId ? closedByUserMap.get((f as any).closedByUserId) : null;
         const closedByName = closedByUser
           ? [closedByUser.firstName, closedByUser.lastName].filter(Boolean).join(" ") || closedByUser.username
-          : "-";
+          : (f.status === "closed" ? "No registrado (cerrado antes)" : "-");
         const leaderUser = walk?.leaderId ? leaderMap.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
         const raisedByName = leaderUser
@@ -1690,7 +1691,7 @@ export async function registerRoutes(
         const closedByUserExcel = (f as any).closedByUserId ? closedByUserMapExcel.get((f as any).closedByUserId) : null;
         const closedByNameExcel = closedByUserExcel
           ? [closedByUserExcel.firstName, closedByUserExcel.lastName].filter(Boolean).join(" ") || closedByUserExcel.username
-          : "-";
+          : (f.status === "closed" ? "No registrado (cerrado antes)" : "-");
         const leaderUser = walk?.leaderId ? leaderMapExcel.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
         const raisedByName = leaderUser
