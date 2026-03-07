@@ -54,6 +54,7 @@ export const findings = pgTable("findings", {
   closeComment: text("close_comment"),
   closeEvidenceUrl: text("close_evidence_url"), // Photo evidence when closing
   closedAt: timestamp("closed_at"), // When the finding was closed
+  closedByUserId: varchar("closed_by_user_id"), // Who closed the finding (for audit)
   riskIfRepeats: boolean("risk_if_repeats").notNull().default(false), // Alerta: riesgo mayor si se repite (solo admin/líder puede marcar)
   createdAt: timestamp("created_at").defaultNow(),
 });

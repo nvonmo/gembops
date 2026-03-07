@@ -835,6 +835,7 @@ export async function registerRoutes(
           photoUrls: findings.photoUrls,
           closeComment: findings.closeComment,
           closeEvidenceUrl: findings.closeEvidenceUrl,
+          closedByUserId: findings.closedByUserId,
           riskIfRepeats: findings.riskIfRepeats,
           createdAt: findings.createdAt,
         })
@@ -851,6 +852,7 @@ export async function registerRoutes(
           area: gembaWalks.area,
           date: gembaWalks.date,
           leaderId: gembaWalks.leaderId,
+          createdBy: gembaWalks.createdBy,
         }).from(gembaWalks).where(inArray(gembaWalks.id, walkIds))
         : [];
       const walkMap = new Map(allWalks.map((w) => [w.id, w]));
@@ -873,17 +875,21 @@ export async function registerRoutes(
         return [walk.area, ...additionalAreas].filter(Boolean);
       };
       
-      // Get user info for responsible users (optimized: exclude password)
+      // Get user info for responsible and closedBy users (optimized: exclude password)
       const responsibleIds = [...new Set(allFindings.map(f => f.responsibleId).filter(Boolean))];
-      const responsibleUsers = responsibleIds.length > 0 
+      const closedByUserIds = [...new Set(allFindings.map((f: any) => f.closedByUserId).filter(Boolean))];
+      const allUserIds = [...new Set([...responsibleIds, ...closedByUserIds])];
+      const responsibleUsers = allUserIds.length > 0 
         ? await db.select({
           id: users.id,
           username: users.username,
           firstName: users.firstName,
           lastName: users.lastName,
-        }).from(users).where(inArray(users.id, responsibleIds))
+          departmentId: users.departmentId,
+        }).from(users).where(inArray(users.id, allUserIds))
         : [];
       const userMap = new Map(responsibleUsers.map(u => [u.id, u]));
+      const [currentUserForCanClose] = await db.select({ role: users.role, departmentId: users.departmentId }).from(users).where(eq(users.id, userId));
       // Get departments for findings with departmentId
       const departmentIds = [...new Set(allFindings.map((f: any) => f.departmentId).filter(Boolean))] as number[];
       const departmentRows = departmentIds.length > 0
@@ -974,9 +980,17 @@ export async function registerRoutes(
         }
       });
       
-      // Add responsible user info, areas, department info and walkLeaderId to findings; resolve S3 URLs for photos
+      // Add responsible user info, areas, department info, walkLeaderId and canClose to findings; resolve S3 URLs for photos
       const findingsWithUsers = allFindings.map((f: any) => {
         const walk = walkMap.get(f.gembaWalkId);
+        const respUser = userMap.get(f.responsibleId);
+        const responsibleDeptId = respUser?.departmentId ?? null;
+        const currentUserDeptId = currentUserForCanClose?.departmentId ?? null;
+        const isResponsible = f.responsibleId === userId;
+        const isAdmin = currentUserForCanClose?.role === "admin";
+        const isCreator = walk?.createdBy === userId;
+        const isSameDepartmentAsResponsible = currentUserDeptId != null && responsibleDeptId != null && currentUserDeptId === responsibleDeptId;
+        const canClose = isResponsible || isAdmin || isCreator || isSameDepartmentAsResponsible;
         const photoUrlsRaw = f.photoUrls ? (typeof f.photoUrls === "string" ? JSON.parse(f.photoUrls) : f.photoUrls) : [];
         const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : [];
         const firstPhoto = photoUrlsResolved.length > 0 ? photoUrlsResolved[0] : resolvePhotoUrl(f.photoUrl);
@@ -985,10 +999,12 @@ export async function registerRoutes(
           photoUrl: firstPhoto,
           photoUrls: photoUrlsResolved.length > 0 ? photoUrlsResolved : (f.photoUrl ? [resolvePhotoUrl(f.photoUrl)] : []),
           closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
-          responsibleUser: userMap.get(f.responsibleId) || null,
+          responsibleUser: respUser || null,
+          closedByUser: f.closedByUserId ? userMap.get(f.closedByUserId) || null : null,
           areas: getAllAreasForWalk(f.gembaWalkId),
           departmentName: f.departmentId ? departmentMap.get(f.departmentId)?.name ?? null : null,
           walkLeaderId: walk?.leaderId ?? null,
+          canClose,
         };
       });
       
@@ -1050,6 +1066,7 @@ export async function registerRoutes(
           photoUrls: findings.photoUrls,
           closeComment: findings.closeComment,
           closeEvidenceUrl: findings.closeEvidenceUrl,
+          closedByUserId: findings.closedByUserId,
           riskIfRepeats: findings.riskIfRepeats,
           createdAt: findings.createdAt,
         })
@@ -1078,12 +1095,22 @@ export async function registerRoutes(
         const additionalAreas = walkAreasMap.get(walkId) || [];
         return [walk.area, ...additionalAreas].filter(Boolean);
       };
-      const [responsibleUser] = await db.select({
-        id: users.id,
-        username: users.username,
-        firstName: users.firstName,
-        lastName: users.lastName,
-      }).from(users).where(eq(users.id, f.responsibleId));
+      const [responsibleUser] = f.responsibleId
+        ? await db.select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          }).from(users).where(eq(users.id, f.responsibleId))
+        : [null];
+      const [closedByUser] = (f as any).closedByUserId
+        ? await db.select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          }).from(users).where(eq(users.id, (f as any).closedByUserId))
+        : [null];
       const photoUrlsRaw = f.photoUrls ? (typeof f.photoUrls === "string" ? JSON.parse(f.photoUrls) : f.photoUrls) : [];
       const photoUrlsResolved = Array.isArray(photoUrlsRaw)
         ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)).filter((u): u is string => u != null && u !== "")
@@ -1097,6 +1124,7 @@ export async function registerRoutes(
         photoUrls: photoUrlsFinal,
         closeEvidenceUrl: resolvePhotoUrl(f.closeEvidenceUrl),
         responsibleUser: responsibleUser || null,
+        closedByUser: closedByUser || null,
         areas: getAllAreasForWalk(f.gembaWalkId),
       };
       res.json(findingWithDetails);
@@ -1267,13 +1295,25 @@ export async function registerRoutes(
       }
 
       const userId = req.session.userId;
-      const [currentUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+      const [currentUser] = await db.select({ role: users.role, departmentId: users.departmentId }).from(users).where(eq(users.id, userId));
       const isAdmin = currentUser?.role === "admin";
       const [walk] = await db.select().from(gembaWalks).where(eq(gembaWalks.id, finding.gembaWalkId));
       const isLeader = walk?.leaderId === userId;
       const isResponsible = finding.responsibleId === userId;
       const isCreator = walk?.createdBy === userId;
-      const canUpdate = isLeader || isResponsible || isCreator || isAdmin;
+      // Join: responsible user → their department. Anyone in the same department as the responsible can close (even if the finding has no departmentId).
+      let responsibleUserDepartmentId: number | null = null;
+      if (finding.responsibleId) {
+        const [respUser] = await db.select({ departmentId: users.departmentId }).from(users).where(eq(users.id, finding.responsibleId));
+        responsibleUserDepartmentId = respUser?.departmentId ?? null;
+      }
+      const currentUserDeptId = currentUser?.departmentId ?? null;
+      const isSameDepartmentAsResponsible =
+        currentUserDeptId != null &&
+        responsibleUserDepartmentId != null &&
+        currentUserDeptId === responsibleUserDepartmentId;
+      const canCloseFinding = isResponsible || isAdmin || isCreator || isSameDepartmentAsResponsible;
+      const canUpdate = isLeader || isResponsible || isCreator || isAdmin || isSameDepartmentAsResponsible;
       
       if (!canUpdate) {
         return res.status(403).json({ message: "No tienes permisos para actualizar este hallazgo" });
@@ -1320,13 +1360,16 @@ export async function registerRoutes(
         }
       }
       
-      // Responsible/creator/admin: status, closeComment, dueDate, closeEvidence (admin can close too)
-      if (isResponsible || isCreator || isAdmin) {
+      // Responsible/creator/admin o mismo departamento: status, closeComment, closeEvidence (quien puede cerrar)
+      if (isResponsible || isCreator || isAdmin || isSameDepartmentAsResponsible) {
         if (status) {
-          if (status === "closed" && !isResponsible && !isAdmin) {
-            return res.status(403).json({ message: "Solo el responsable o un administrador puede cerrar el hallazgo" });
+          if (status === "closed" && !canCloseFinding) {
+            return res.status(403).json({ message: "Solo el responsable, un administrador, el creador del recorrido o alguien del mismo departamento puede cerrar el hallazgo" });
           }
           updateData.status = status;
+          if (status === "closed") {
+            updateData.closedByUserId = userId;
+          }
         }
         if (closeComment !== undefined) updateData.closeComment = closeComment;
         const closeEvidenceFiles = (req.files?.closeEvidence as Express.Multer.File[]) || [];
@@ -1368,6 +1411,7 @@ export async function registerRoutes(
         }
         if (status === "closed" && finding.status !== "closed") {
           updateData.closedAt = new Date();
+          if (!updateData.closedByUserId) updateData.closedByUserId = userId;
           await db
             .update(notifications)
             .set({ isActionCompleted: true })
@@ -1403,11 +1447,18 @@ export async function registerRoutes(
       const updatedFinding = await storage.updateFinding(id, updateData);
       const photoUrlsRaw = updatedFinding?.photoUrls ? (typeof updatedFinding.photoUrls === "string" ? JSON.parse(updatedFinding.photoUrls) : updatedFinding.photoUrls) : [];
       const photoUrlsResolved = Array.isArray(photoUrlsRaw) ? photoUrlsRaw.map((u: string) => resolvePhotoUrl(u)) : (updatedFinding?.photoUrl ? [resolvePhotoUrl(updatedFinding.photoUrl)] : []);
+      let closedByUser: { id: string; username: string; firstName: string | null; lastName: string | null } | null = null;
+      if (updatedFinding?.closedByUserId) {
+        const [u] = await db.select({ id: users.id, username: users.username, firstName: users.firstName, lastName: users.lastName })
+          .from(users).where(eq(users.id, updatedFinding.closedByUserId));
+        closedByUser = u || null;
+      }
       res.json({
         ...updatedFinding,
         photoUrl: resolvePhotoUrl(updatedFinding?.photoUrl ?? null),
         photoUrls: photoUrlsResolved,
         closeEvidenceUrl: resolvePhotoUrl(updatedFinding?.closeEvidenceUrl ?? null),
+        closedByUser,
       });
     } catch (error) {
       console.error("Error updating finding:", error);
@@ -1458,6 +1509,13 @@ export async function registerRoutes(
         : [];
       const userMap = new Map(responsibleUsers.map(u => [u.id, u]));
 
+      // Get closed-by user info (who closed each finding)
+      const closedByIds = [...new Set(findingsList.map(f => (f as any).closedByUserId).filter(Boolean))];
+      const closedByUsers = closedByIds.length > 0
+        ? await db.select().from(users).where(inArray(users.id, closedByIds))
+        : [];
+      const closedByUserMap = new Map(closedByUsers.map(u => [u.id, u]));
+
       // Get leaders of Gemba Walks (who actually raised the finding); fallback to creator if no leader
       const leaderIds = [...new Set(allWalks.map(w => w.leaderId).filter(Boolean))];
       const leaders = leaderIds.length > 0
@@ -1492,7 +1550,7 @@ export async function registerRoutes(
         <p>Generado: ${formatDateMexico(new Date())}${month && month !== "all" ? ` | Mes: ${month}` : ""}</p>
         <table>
           <thead>
-            <tr><th>#</th><th>Fecha Gemba Walk</th><th>Levantado por</th><th>Area</th><th>Categoria</th><th>Descripcion</th><th>Responsable</th><th>Fecha compromiso</th><th>Estatus</th><th>Alerta</th><th>Fecha de cierre</th><th>Comentarios de cierre</th></tr>
+            <tr><th>#</th><th>Fecha Gemba Walk</th><th>Levantado por</th><th>Area</th><th>Categoria</th><th>Descripcion</th><th>Responsable</th><th>Fecha compromiso</th><th>Estatus</th><th>Alerta</th><th>Fecha de cierre</th><th>Cerrado por</th><th>Comentarios de cierre</th></tr>
           </thead>
           <tbody>`;
 
@@ -1502,6 +1560,10 @@ export async function registerRoutes(
         const responsibleName = responsibleUser 
           ? [responsibleUser.firstName, responsibleUser.lastName].filter(Boolean).join(" ") || responsibleUser.username
           : f.responsibleId || "Sin asignar";
+        const closedByUser = (f as any).closedByUserId ? closedByUserMap.get((f as any).closedByUserId) : null;
+        const closedByName = closedByUser
+          ? [closedByUser.firstName, closedByUser.lastName].filter(Boolean).join(" ") || closedByUser.username
+          : "-";
         const leaderUser = walk?.leaderId ? leaderMap.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
         const raisedByName = leaderUser
@@ -1530,6 +1592,7 @@ export async function registerRoutes(
           <td class="${statusClass}">${statusLabels[f.status] || f.status}</td>
           <td>${alertCell}</td>
           <td>${closedAtStr}</td>
+          <td>${closedByName}</td>
           <td>${closeCommentEscaped}</td>
         </tr>`;
       });
@@ -1588,6 +1651,13 @@ export async function registerRoutes(
         : [];
       const userMap = new Map(responsibleUsers.map(u => [u.id, u]));
 
+      // Get closed-by user info (who closed each finding)
+      const closedByIdsExcel = [...new Set(findingsList.map(f => (f as any).closedByUserId).filter(Boolean))];
+      const closedByUsersExcel = closedByIdsExcel.length > 0
+        ? await db.select().from(users).where(inArray(users.id, closedByIdsExcel))
+        : [];
+      const closedByUserMapExcel = new Map(closedByUsersExcel.map(u => [u.id, u]));
+
       // Get leaders of Gemba Walks (who actually raised the finding); fallback to creator if no leader
       const leaderIdsExcel = [...new Set(allWalks.map(w => w.leaderId).filter(Boolean))];
       const leadersExcel = leaderIdsExcel.length > 0
@@ -1608,7 +1678,7 @@ export async function registerRoutes(
       // CSV con comas y campos entrecomillados para que Excel separe bien las columnas (misma estructura que el PDF)
       const csvHeader = [
         "#", "Fecha Gemba Walk", "Levantado por", "Area", "Categoria", "Descripcion",
-        "Responsable", "Fecha compromiso", "Estatus", "Alerta", "Fecha de cierre", "Comentario cierre",
+        "Responsable", "Fecha compromiso", "Estatus", "Alerta", "Fecha de cierre", "Cerrado por", "Comentario cierre",
       ].map(escapeCsvCell).join(",");
 
       const csvRows = findingsList.map((f, index) => {
@@ -1617,6 +1687,10 @@ export async function registerRoutes(
         const responsibleName = responsibleUser 
           ? [responsibleUser.firstName, responsibleUser.lastName].filter(Boolean).join(" ") || responsibleUser.username
           : f.responsibleId || "Sin asignar";
+        const closedByUserExcel = (f as any).closedByUserId ? closedByUserMapExcel.get((f as any).closedByUserId) : null;
+        const closedByNameExcel = closedByUserExcel
+          ? [closedByUserExcel.firstName, closedByUserExcel.lastName].filter(Boolean).join(" ") || closedByUserExcel.username
+          : "-";
         const leaderUser = walk?.leaderId ? leaderMapExcel.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
         const raisedByName = leaderUser
@@ -1642,6 +1716,7 @@ export async function registerRoutes(
           statusLabels[f.status] || f.status,
           alertValue,
           closedAtStr,
+          closedByNameExcel,
           f.closeComment || "",
         ];
         return cells.map(escapeCsvCell).join(",");

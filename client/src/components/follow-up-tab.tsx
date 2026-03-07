@@ -25,7 +25,7 @@ interface User {
   lastName: string | null;
 }
 
-type FindingWithUser = Finding & { responsibleUser?: User | null; walkLeaderId?: string | null; areas?: string[] };
+type FindingWithUser = Finding & { responsibleUser?: User | null; closedByUser?: User | null; walkLeaderId?: string | null; areas?: string[]; canClose?: boolean };
 
 export default function FollowUpTab() {
   const { user } = useAuth();
@@ -463,7 +463,7 @@ export default function FollowUpTab() {
                             Abierto
                           </Badge>
                         )}
-                        {user?.id === f.responsibleId && f.status !== "closed" && (
+                        {(f.canClose ?? user?.id === f.responsibleId) && f.status !== "closed" && (
                           <Button
                             size="sm"
                             variant="default"

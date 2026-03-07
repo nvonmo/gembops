@@ -1162,7 +1162,7 @@ function FindingCard({
   usersList,
   departmentsList,
 }: {
-  finding: Finding & { responsibleUser?: User | null; walkLeaderId?: string | null; areas?: string[]; departmentName?: string | null };
+  finding: Finding & { responsibleUser?: User | null; closedByUser?: User | null; walkLeaderId?: string | null; areas?: string[]; departmentName?: string | null };
   walkArea?: string;
   statusInfo: { label: string; variant: "default" | "secondary" | "destructive" };
   isOverdue: boolean;
@@ -1510,6 +1510,12 @@ function FindingCard({
       </div>
       {finding.status === "closed" && (
         <div className="border-t pt-2 space-y-2">
+          {(finding as { closedByUser?: User | null }).closedByUser && (
+            <p className="text-xs text-muted-foreground">
+              <span className="font-medium">Cerrado por:</span>{" "}
+              {[finding.closedByUser!.firstName, finding.closedByUser!.lastName].filter(Boolean).join(" ") || finding.closedByUser!.username}
+            </p>
+          )}
           {finding.closeComment && (
             <p className="text-xs text-muted-foreground">
               <span className="font-medium">Comentario de cierre:</span> {finding.closeComment}

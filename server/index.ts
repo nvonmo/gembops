@@ -148,6 +148,11 @@ app.use((req, res, next) => {
       "ALTER TABLE findings ADD COLUMN IF NOT EXISTS closed_at TIMESTAMP WITH TIME ZONE"
     );
 
+    // Findings: quien cerró el hallazgo (trazabilidad)
+    await pool.query(
+      "ALTER TABLE findings ADD COLUMN IF NOT EXISTS closed_by_user_id VARCHAR(255)"
+    );
+
     // Findings: alerta riesgo mayor si se repite (solo admin/líder puede marcar)
     await pool.query(
       "ALTER TABLE findings ADD COLUMN IF NOT EXISTS risk_if_repeats BOOLEAN NOT NULL DEFAULT false"
