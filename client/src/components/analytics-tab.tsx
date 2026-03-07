@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { TrendingUp, Clock, CheckCircle2, AlertCircle, Target, Users, MapPin, Tag, CalendarX2 } from "lucide-react";
+import { TrendingUp, Clock, CheckCircle2, AlertCircle, Target, Users, MapPin, Tag, CalendarX2, Building2 } from "lucide-react";
 
 interface AnalyticsData {
   findingsByMonth: { month: string; open: number; closed: number }[];
@@ -9,6 +9,7 @@ interface AnalyticsData {
   findingsByArea: { area: string; count: number }[];
   findingsByAreaOpen?: { area: string; count: number }[];
   topResponsibles: { name: string; count: number; openCount?: number }[];
+  findingsByDepartment?: { name: string; count: number; openCount?: number }[];
   metrics: {
     totalFindings: number;
     openFindings: number;
@@ -71,7 +72,7 @@ export default function AnalyticsTab() {
     );
   }
 
-  const { metrics, findingsByMonth, findingsByCategory, findingsByArea, findingsByAreaOpen = [], topResponsibles } = data;
+  const { metrics, findingsByMonth, findingsByCategory, findingsByArea, findingsByAreaOpen = [], topResponsibles, findingsByDepartment = [] } = data;
 
   return (
     <div className="space-y-6">
@@ -353,6 +354,40 @@ export default function AnalyticsTab() {
               <Bar dataKey="openCount" fill="#f7a83a" name="Abiertos" />
             </BarChart>
           </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Hallazgos por departamento: total (azul) y abiertos (naranja) */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Building2 className="h-5 w-5" />
+            Hallazgos por Departamento
+          </CardTitle>
+          <p className="text-sm text-muted-foreground font-normal">
+            Agrupado por departamento del responsable asignado
+          </p>
+        </CardHeader>
+        <CardContent>
+          {findingsByDepartment.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">No hay hallazgos con responsable asignado a un departamento</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={Math.max(260, findingsByDepartment.length * 44)}>
+              <BarChart
+                data={findingsByDepartment.map((d) => ({ ...d, openCount: d.openCount ?? 0 }))}
+                layout="vertical"
+                margin={{ left: 8, right: 8 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="count" fill="#22B2D7" name="Total" barSize={24} />
+                <Bar dataKey="openCount" fill="#f7a83a" name="Abiertos" barSize={24} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -642,7 +642,7 @@ export async function registerRoutes(
         walkAreasMap.set(wa.gembaWalkId, [...existing, wa.areaName]);
       });
       
-      // Get users (optimized: exclude password)
+      // Get users with departmentId (optimized: exclude password)
       const responsibleIds = [...new Set(allFindings.map(f => f.responsibleId).filter(Boolean))];
       const responsibleUsers = responsibleIds.length > 0 
         ? await db.select({
@@ -650,9 +650,15 @@ export async function registerRoutes(
           username: users.username,
           firstName: users.firstName,
           lastName: users.lastName,
+          departmentId: users.departmentId,
         }).from(users).where(inArray(users.id, responsibleIds))
         : [];
       const userMap = new Map(responsibleUsers.map(u => [u.id, u]));
+      const deptIdsAnalytics = [...new Set(responsibleUsers.map(u => u.departmentId).filter(Boolean))] as number[];
+      const departmentsAnalytics = deptIdsAnalytics.length > 0
+        ? await db.select().from(departments).where(inArray(departments.id, deptIdsAnalytics))
+        : [];
+      const departmentNameMap = new Map(departmentsAnalytics.map(d => [d.id, d.name]));
       
       const now = new Date();
       const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1);
@@ -716,6 +722,19 @@ export async function registerRoutes(
         if (f.status !== "closed") prev.open += 1;
         findingsByResponsible.set(name, prev);
       });
+
+      // 4b. Hallazgos por departamento (departamento del responsable): total y abiertos
+      const findingsByDepartment = new Map<string, { total: number; open: number }>();
+      allFindings.forEach(f => {
+        if (!f.responsibleId) return;
+        const user = userMap.get(f.responsibleId);
+        const deptId = user?.departmentId ?? null;
+        const departmentName = deptId != null ? (departmentNameMap.get(deptId) ?? `Departamento ${deptId}`) : "Sin departamento";
+        const prev = findingsByDepartment.get(departmentName) || { total: 0, open: 0 };
+        prev.total += 1;
+        if (f.status !== "closed") prev.open += 1;
+        findingsByDepartment.set(departmentName, prev);
+      });
       
       // 5. Tasa de cierre y tiempo promedio
       const closedFindings = allFindings.filter(f => f.status === "closed" && f.createdAt && f.dueDate);
@@ -768,6 +787,10 @@ export async function registerRoutes(
           .sort((a, b) => b.count - a.count)
           .slice(0, 10),
         topResponsibles: Array.from(findingsByResponsible.entries())
+          .map(([name, { total, open }]) => ({ name, count: total, openCount: open }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10),
+        findingsByDepartment: Array.from(findingsByDepartment.entries())
           .map(([name, { total, open }]) => ({ name, count: total, openCount: open }))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10),
