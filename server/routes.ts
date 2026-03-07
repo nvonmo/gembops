@@ -1584,7 +1584,7 @@ export async function registerRoutes(
         const closedByUser = (f as any).closedByUserId ? closedByUserMap.get((f as any).closedByUserId) : null;
         const closedByName = closedByUser
           ? [closedByUser.firstName, closedByUser.lastName].filter(Boolean).join(" ") || closedByUser.username
-          : (f.status === "closed" ? "No registrado (cerrado antes)" : "-");
+          : (f.status === "closed" ? (responsibleName !== "Sin asignar" ? responsibleName : "-") : "-");
         const leaderUser = walk?.leaderId ? leaderMap.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
         const raisedByName = leaderUser
@@ -1711,7 +1711,7 @@ export async function registerRoutes(
         const closedByUserExcel = (f as any).closedByUserId ? closedByUserMapExcel.get((f as any).closedByUserId) : null;
         const closedByNameExcel = closedByUserExcel
           ? [closedByUserExcel.firstName, closedByUserExcel.lastName].filter(Boolean).join(" ") || closedByUserExcel.username
-          : (f.status === "closed" ? "No registrado (cerrado antes)" : "-");
+          : (f.status === "closed" ? (responsibleName !== "Sin asignar" ? responsibleName : "-") : "-");
         const leaderUser = walk?.leaderId ? leaderMapExcel.get(walk.leaderId) : null;
         const creatorUser = walk ? creatorMap.get(walk.createdBy) : null;
         const raisedByName = leaderUser
