@@ -64,9 +64,9 @@ export default function FollowUpTab() {
     };
   }
 
-  // Pedir todos los hallazgos abiertos (limit alto) para que los totales coincidan con Analytics
+  // Pedir todos los hallazgos abiertos (limit alto); incluir user?.id en la key para que canClose se refetch al cambiar de usuario (evitar caché de admin)
   const { data: findingsData, isLoading, error: findingsError, refetch: refetchFindings, isRefetching } = useQuery<FindingsResponse>({
-    queryKey: ["/api/findings?status=open&limit=500"],
+    queryKey: ["/api/findings?status=open&limit=500", user?.id],
   });
 
   const findings = findingsData?.findings || [];

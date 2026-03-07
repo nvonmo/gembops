@@ -1191,21 +1191,18 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Solo puedes registrar hallazgos en recorridos de hoy o de los últimos 5 días" });
       }
       
-      const hasResponsible = !!responsibleId;
+      const hasResponsible = responsibleId && String(responsibleId).trim() && String(responsibleId) !== "__none__";
+      if (!hasResponsible) {
+        return res.status(400).json({ message: "Debes asignar un responsable (usuario)" });
+      }
+
+      const [userRow] = await db.select().from(users).where(eq(users.id, responsibleId));
+      if (!userRow) {
+        return res.status(400).json({ message: "Usuario responsable no encontrado" });
+      }
+      const responsibleUser = userRow;
+
       const departmentIdNum = departmentId ? parseInt(String(departmentId), 10) : null;
-      if (!hasResponsible && !departmentIdNum) {
-        return res.status(400).json({ message: "Debes asignar un responsable o un departamento" });
-      }
-
-      let responsibleUser = null;
-      if (hasResponsible) {
-        const [userRow] = await db.select().from(users).where(eq(users.id, responsibleId));
-        if (!userRow) {
-          return res.status(400).json({ message: "Usuario responsable no encontrado" });
-        }
-        responsibleUser = userRow;
-      }
-
       if (departmentIdNum) {
         const [dept] = await db.select().from(departments).where(eq(departments.id, departmentIdNum));
         if (!dept) {
@@ -1244,7 +1241,7 @@ export async function registerRoutes(
         area: area || null,
         category,
         description,
-        responsibleId: hasResponsible ? responsibleId : null,
+        responsibleId,
         departmentId: departmentIdNum,
         dueDate: null,
         status: status || "open",
@@ -1254,8 +1251,8 @@ export async function registerRoutes(
 
       const walkArea = walk?.area || "desconocida";
 
-      // Create notification for the responsible user (if any)
-      if (hasResponsible && responsibleUser) {
+      // Create notification for the responsible user
+      if (responsibleUser) {
         await db.insert(notifications).values({
           userId: responsibleId,
           type: "finding_assigned",

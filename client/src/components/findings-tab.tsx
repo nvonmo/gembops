@@ -174,7 +174,7 @@ export default function FindingsTab() {
   }
 
   const { data: findingsData, isLoading, error: findingsError, refetch: refetchFindings, isRefetching } = useQuery<FindingsResponse>({
-    queryKey: [`/api/findings?${queryParams.toString()}`],
+    queryKey: [`/api/findings?${queryParams.toString()}`, user?.id],
   });
 
   const findings = findingsData?.findings || [];
@@ -591,7 +591,7 @@ export default function FindingsTab() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label>Responsable</Label>
+                <Label>Responsable (obligatorio)</Label>
                 <Select value={responsibleId} onValueChange={setResponsibleId}>
                   <SelectTrigger data-testid="select-responsible" className="text-base h-11 sm:h-10">
                     <SelectValue placeholder="Seleccionar responsable" />
@@ -643,7 +643,7 @@ export default function FindingsTab() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
-                  Puedes asignar el hallazgo a un usuario, a un departamento, o a ambos.
+                  Opcional: también puedes asignar un departamento además del responsable.
                 </p>
               </div>
               <div className="space-y-2">
@@ -707,7 +707,7 @@ export default function FindingsTab() {
                   (walkAreas.length > 0 && !selectedArea) ||
                   !category ||
                   !description ||
-                  (!responsibleId && !departmentId) ||
+                  !responsibleId ||
                   createMutation.isPending
                 }
                 onClick={() => {
