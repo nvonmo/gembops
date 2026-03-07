@@ -1736,72 +1736,72 @@ function FindingCard({
             </DialogContent>
           </Dialog>
           )}
-
-          {/* Image Modal */}
-          <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
-            <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-2 sm:p-0">
-              <div className="p-4 border-b">
-                <DialogTitle className="text-lg">
-                  {selectedImageUrl && (selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video"))
-                    ? (/\.mp4$/i.test(selectedImageUrl) ? "Ver video (MP4)" : "Ver video (MOV)")
-                    : "Ver imagen"}
-                </DialogTitle>
-              </div>
-              <div className="p-4 flex flex-col items-center justify-center bg-muted/50 gap-3">
-                {selectedImageUrl && (
-                  (() => {
-                    const displayUrl = toAbsolute(selectedImageUrl.trim());
-                    const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
-                    const isMov = /\.mov$/i.test(selectedImageUrl);
-                    const isMp4 = /\.mp4$/i.test(selectedImageUrl);
-                    const isExternal = (displayUrl.startsWith("http://") || displayUrl.startsWith("https://")) && !displayUrl.startsWith(window.location.origin);
-                    const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(displayUrl)}` : displayUrl;
-                    return isVideo ? (
-                      <>
-                        <p className="text-sm text-muted-foreground text-center">
-                          {isMp4 ? "Usa el botón de reproducir (▶) abajo. Si no carga, descarga el archivo." : "Los .MOV a veces no se reproducen en Chrome. Si no ves el video, descarga el archivo."}
-                        </p>
-                        <video
-                          key={videoSrc}
-                          src={videoSrc}
-                          controls
-                          autoPlay
-                          playsInline
-                          onError={() => setVideoLoadError(true)}
-                          onLoadedData={() => setVideoLoadError(false)}
-                          className="max-w-full max-h-[70vh] rounded-md"
-                        >
-                          Tu navegador no soporta la reproducción de videos.
-                        </video>
-                        {videoLoadError && (
-                          <p className="text-sm text-destructive font-medium text-center">
-                            No se pudo cargar. Prueba descargar el video o verifica que el hallazgo sea el que tiene video en MP4 (subido después del 26 feb).
-                          </p>
-                        )}
-                        <Button variant="outline" size="sm" asChild>
-                          <a href={displayUrl} download target="_blank" rel="noopener noreferrer" className="gap-2">
-                            <Download className="h-4 w-4" />
-                            Descargar video
-                          </a>
-                        </Button>
-                      </>
-                    ) : (
-                      <img
-                        src={displayUrl}
-                        alt="Imagen ampliada"
-                        loading="eager"
-                        decoding="async"
-                        referrerPolicy="no-referrer"
-                        className="max-w-full max-h-[70vh] object-contain rounded-md"
-                      />
-                    );
-                  })()
-                )}
-              </div>
-            </DialogContent>
-          </Dialog>
         </div>
       )}
+
+      {/* Image Modal: fuera del bloque status !== "closed" para que las miniaturas abran también en hallazgos cerrados */}
+      <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
+        <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-2 sm:p-0">
+          <div className="p-4 border-b">
+            <DialogTitle className="text-lg">
+              {selectedImageUrl && (selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video"))
+                ? (/\.mp4$/i.test(selectedImageUrl) ? "Ver video (MP4)" : "Ver video (MOV)")
+                : "Ver imagen"}
+            </DialogTitle>
+          </div>
+          <div className="p-4 flex flex-col items-center justify-center bg-muted/50 gap-3">
+            {selectedImageUrl && (
+              (() => {
+                const displayUrl = toAbsolute(selectedImageUrl.trim());
+                const isVideo = selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video");
+                const isMov = /\.mov$/i.test(selectedImageUrl);
+                const isMp4 = /\.mp4$/i.test(selectedImageUrl);
+                const isExternal = (displayUrl.startsWith("http://") || displayUrl.startsWith("https://")) && !displayUrl.startsWith(window.location.origin);
+                const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(displayUrl)}` : displayUrl;
+                return isVideo ? (
+                  <>
+                    <p className="text-sm text-muted-foreground text-center">
+                      {isMp4 ? "Usa el botón de reproducir (▶) abajo. Si no carga, descarga el archivo." : "Los .MOV a veces no se reproducen en Chrome. Si no ves el video, descarga el archivo."}
+                    </p>
+                    <video
+                      key={videoSrc}
+                      src={videoSrc}
+                      controls
+                      autoPlay
+                      playsInline
+                      onError={() => setVideoLoadError(true)}
+                      onLoadedData={() => setVideoLoadError(false)}
+                      className="max-w-full max-h-[70vh] rounded-md"
+                    >
+                      Tu navegador no soporta la reproducción de videos.
+                    </video>
+                    {videoLoadError && (
+                      <p className="text-sm text-destructive font-medium text-center">
+                        No se pudo cargar. Prueba descargar el video o verifica que el hallazgo sea el que tiene video en MP4 (subido después del 26 feb).
+                      </p>
+                    )}
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={displayUrl} download target="_blank" rel="noopener noreferrer" className="gap-2">
+                        <Download className="h-4 w-4" />
+                        Descargar video
+                      </a>
+                    </Button>
+                  </>
+                ) : (
+                  <img
+                    src={displayUrl}
+                    alt="Imagen ampliada"
+                    loading="eager"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    className="max-w-full max-h-[70vh] object-contain rounded-md"
+                  />
+                );
+              })()
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit finding dialog (leader only) */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>

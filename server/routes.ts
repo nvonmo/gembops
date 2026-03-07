@@ -685,10 +685,20 @@ export async function registerRoutes(
         }
       });
       
-      // 2. Hallazgos por categoría
+      // 2. Hallazgos por categoría (agrupar por nombre base: "Instalaciones (Paredes...)" y "Instalaciones" → "Instalaciones")
+      const categoryNameOnly = (label: string): string => {
+        if (!label || typeof label !== "string") return label;
+        const s = label.trim();
+        const idxParen = s.indexOf(" (");
+        if (idxParen > 0) return s.slice(0, idxParen).trim();
+        const idxDash = s.indexOf(" -");
+        if (idxDash > 0) return s.slice(0, idxDash).trim();
+        return s;
+      };
       const findingsByCategory = new Map<string, number>();
       allFindings.forEach(f => {
-        findingsByCategory.set(f.category, (findingsByCategory.get(f.category) || 0) + 1);
+        const key = categoryNameOnly(f.category);
+        findingsByCategory.set(key, (findingsByCategory.get(key) || 0) + 1);
       });
       
       // 3. Hallazgos por área: cada hallazgo cuenta solo en SU área (donde se detectó), no en todas las áreas del recorrido
