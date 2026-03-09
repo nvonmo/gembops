@@ -344,14 +344,22 @@ export default function AnalyticsTab() {
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={topResponsibles.map((r) => ({ ...r, openCount: r.openCount ?? 0 }))} layout="vertical" margin={{ left: 8, right: 8 }}>
+            <BarChart
+              data={topResponsibles.map((r) => ({
+                ...r,
+                openCount: r.openCount ?? 0,
+                closedCount: (r.count ?? 0) - (r.openCount ?? 0),
+              }))}
+              layout="vertical"
+              margin={{ left: 8, right: 8 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis type="number" />
               <YAxis dataKey="name" type="category" width={120} tick={{ fontSize: 12 }} />
               <Tooltip />
               <Legend />
-              <Bar dataKey="count" fill="#22B2D7" name="Total" />
-              <Bar dataKey="openCount" fill="#f7a83a" name="Abiertos" />
+              <Bar dataKey="closedCount" stackId="stack" fill="#22B2D7" name="Cerrados" />
+              <Bar dataKey="openCount" stackId="stack" fill="#f7a83a" name="Abiertos" />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
@@ -374,7 +382,11 @@ export default function AnalyticsTab() {
           ) : (
             <ResponsiveContainer width="100%" height={Math.max(260, findingsByDepartment.length * 44)}>
               <BarChart
-                data={findingsByDepartment.map((d) => ({ ...d, openCount: d.openCount ?? 0 }))}
+                data={findingsByDepartment.map((d) => ({
+                  ...d,
+                  openCount: d.openCount ?? 0,
+                  closedCount: (d.count ?? 0) - (d.openCount ?? 0),
+                }))}
                 layout="vertical"
                 margin={{ left: 8, right: 8 }}
               >
@@ -383,8 +395,8 @@ export default function AnalyticsTab() {
                 <YAxis dataKey="name" type="category" width={140} tick={{ fontSize: 12 }} />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="count" fill="#22B2D7" name="Total" barSize={24} />
-                <Bar dataKey="openCount" fill="#f7a83a" name="Abiertos" barSize={24} />
+                <Bar dataKey="closedCount" stackId="stack" fill="#22B2D7" name="Cerrados" barSize={24} />
+                <Bar dataKey="openCount" stackId="stack" fill="#f7a83a" name="Abiertos" barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           )}
