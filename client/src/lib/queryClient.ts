@@ -29,7 +29,10 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const url = queryKey.join("/") as string;
+    const [url] = queryKey;
+    if (typeof url !== "string") {
+      throw new Error("Invalid query key: first element must be a URL string");
+    }
     const res = await fetch(url, {
       credentials: "include",
     });

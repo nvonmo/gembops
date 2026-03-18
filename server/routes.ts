@@ -157,14 +157,36 @@ export async function registerRoutes(
         // Get leader info if exists
         let leader = null;
         if (walk.leaderId) {
-          const [leaderUser] = await db.select().from(users).where(eq(users.id, walk.leaderId));
+          const [leaderUser] = await db.select({
+            id: users.id,
+            email: users.email,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            profileImageUrl: users.profileImageUrl,
+            departmentId: users.departmentId,
+            role: users.role,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+          }).from(users).where(eq(users.id, walk.leaderId));
           leader = leaderUser;
         }
         
         // Get participants info with confirmedAt
         const participantIds = walkParticipants.map(p => p.userId);
         const participantUsers = participantIds.length > 0
-          ? await db.select().from(users).where(inArray(users.id, participantIds))
+          ? await db.select({
+              id: users.id,
+              email: users.email,
+              username: users.username,
+              firstName: users.firstName,
+              lastName: users.lastName,
+              profileImageUrl: users.profileImageUrl,
+              departmentId: users.departmentId,
+              role: users.role,
+              createdAt: users.createdAt,
+              updatedAt: users.updatedAt,
+            }).from(users).where(inArray(users.id, participantIds))
           : [];
         const participantMap = new Map(walkParticipants.map(p => [p.userId, p]));
         const participantsWithConfirmation = participantUsers.map(u => ({

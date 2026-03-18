@@ -1573,6 +1573,9 @@ function FindingCard({
               <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-sm">
                 <DialogHeader>
                   <DialogTitle>Establecer fecha de compromiso</DialogTitle>
+                  <DialogDescription className="sr-only">
+                    Dialogo para seleccionar y guardar la fecha compromiso del hallazgo.
+                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 pt-2">
                   <div className="space-y-2">
@@ -1628,6 +1631,9 @@ function FindingCard({
                 <DialogTitle>
                   {isResponsible && finding.status !== "closed" ? "Cerrar hallazgo" : "Actualizar estatus"}
                 </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Dialogo para cerrar el hallazgo o actualizar su estatus.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-2">
                 {/* Solo responsable al cerrar: formulario completo (comentario + evidencia). Admin/creador: solo cambio de estatus. */}
@@ -1742,13 +1748,16 @@ function FindingCard({
       {/* Image Modal: fuera del bloque status !== "closed" para que las miniaturas abran también en hallazgos cerrados */}
       <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-2 sm:p-0">
-          <div className="p-4 border-b">
+          <DialogHeader className="p-4 border-b space-y-1.5">
             <DialogTitle className="text-lg">
               {selectedImageUrl && (selectedImageUrl.match(/\.(mp4|webm|ogg|mov|avi)$/i) || selectedImageUrl.includes("video"))
                 ? (/\.mp4$/i.test(selectedImageUrl) ? "Ver video (MP4)" : "Ver video (MOV)")
                 : "Ver imagen"}
             </DialogTitle>
-          </div>
+            <DialogDescription className="sr-only">
+              Vista previa ampliada de evidencia en imagen o video del hallazgo.
+            </DialogDescription>
+          </DialogHeader>
           <div className="p-4 flex flex-col items-center justify-center bg-muted/50 gap-3">
             {selectedImageUrl && (
               (() => {
@@ -1808,6 +1817,9 @@ function FindingCard({
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar hallazgo</DialogTitle>
+            <DialogDescription className="sr-only">
+              Formulario para editar la informacion del hallazgo seleccionado.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-2">
