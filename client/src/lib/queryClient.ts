@@ -29,10 +29,18 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const [url] = queryKey;
-    if (typeof url !== "string") {
+    const [baseUrl, ...rest] = queryKey;
+    if (typeof baseUrl !== "string") {
       throw new Error("Invalid query key: first element must be a URL string");
     }
+    // Support two query-key styles:
+    // 1) ["/api/resource?x=1", cacheDiscriminator] -> keep URL as-is
+    // 2) ["/api/resource", id] -> append path params
+    const url = baseUrl.includes("?")
+      ? baseUrl
+      : rest
+          .filter((part) => ["string", "number", "boolean"].includes(typeof part))
+          .reduce((acc, part) => `${acc}/${encodeURIComponent(String(part))}`, baseUrl);
     const res = await fetch(url, {
       credentials: "include",
     });
