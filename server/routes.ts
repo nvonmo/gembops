@@ -83,6 +83,8 @@ const uploadMemory = multer({
   fileFilter: fileFilterImagesVideos,
 });
 
+const CLOSE_EVIDENCE_MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8MB
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -1337,7 +1339,21 @@ export async function registerRoutes(
     { name: "photos", maxCount: 10 },
   ]);
 
-  app.patch("/api/findings/:id", isAuthenticated, uploadFindingPatch, async (req: any, res) => {
+  const uploadFindingPatchMiddleware = (req: any, res: any, next: any) => {
+    uploadFindingPatch(req, res, (error: any) => {
+      if (!error) return next();
+      if (error instanceof multer.MulterError) {
+        if (error.code === "LIMIT_FILE_SIZE") {
+          return res.status(413).json({ message: "El archivo excede el tamaño permitido (50MB)." });
+        }
+        return res.status(400).json({ message: `Error al procesar archivo: ${error.code}` });
+      }
+      return res.status(400).json({ message: error?.message || "Archivo inválido" });
+    });
+  };
+
+  app.patch("/api/findings/:id", isAuthenticated, uploadFindingPatchMiddleware, async (req: any, res) => {
+    const requestStartedAt = Date.now();
     try {
       const id = parseInt(req.params.id);
       const { status, closeComment, dueDate, description, area, category, riskIfRepeats, responsibleId, departmentId } = req.body;
@@ -1427,6 +1443,17 @@ export async function registerRoutes(
         if (closeComment !== undefined) updateData.closeComment = closeComment;
         const closeEvidenceFiles = (req.files?.closeEvidence as Express.Multer.File[]) || [];
         const closeFile = closeEvidenceFiles[0];
+        if (closeFile && status !== "closed") {
+          return res.status(400).json({ message: "La evidencia de cierre solo se permite cuando el estado es cerrado" });
+        }
+        if (closeFile) {
+          if (!closeFile.mimetype?.startsWith("image/")) {
+            return res.status(415).json({ message: "La evidencia de cierre debe ser una imagen (JPG, PNG, WEBP, etc.)" });
+          }
+          if (closeFile.size > CLOSE_EVIDENCE_MAX_SIZE_BYTES) {
+            return res.status(413).json({ message: "La imagen de evidencia excede 8MB. Comprime la imagen e inténtalo de nuevo." });
+          }
+        }
         if (closeFile && status === "closed") {
           let buffer = (closeFile as any).buffer as Buffer;
           let ext = path.extname(closeFile.originalname).toLowerCase();
@@ -1441,7 +1468,15 @@ export async function registerRoutes(
           }
           if (isS3Configured()) {
             const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+            const s3UploadStartedAt = Date.now();
             const url = await uploadToS3(key, buffer, contentType);
+            console.log("[Findings PATCH] closeEvidence upload OK:", {
+              findingId: id,
+              key,
+              mimeType: contentType,
+              sizeBytes: buffer.length,
+              elapsedMs: Date.now() - s3UploadStartedAt,
+            });
             updateData.closeEvidenceUrl = resolvePhotoUrl(url);
           } else {
             const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
@@ -1514,7 +1549,10 @@ export async function registerRoutes(
         closedByUser,
       });
     } catch (error) {
-      console.error("Error updating finding:", error);
+      console.error("Error updating finding:", {
+        message: (error as Error)?.message || String(error),
+        elapsedMs: Date.now() - requestStartedAt,
+      });
       res.status(500).json({ message: "Error al actualizar hallazgo" });
     }
   });
