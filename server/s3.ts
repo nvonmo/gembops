@@ -11,10 +11,10 @@ function getPositiveIntEnv(name: string, fallback: number): number {
   return Math.trunc(parsed);
 }
 
-const S3_CONNECT_TIMEOUT_MS = getPositiveIntEnv("S3_CONNECT_TIMEOUT_MS", 3000);
-const S3_REQUEST_TIMEOUT_MS = getPositiveIntEnv("S3_REQUEST_TIMEOUT_MS", 15000);
-const S3_PUT_OBJECT_TIMEOUT_MS = getPositiveIntEnv("S3_PUT_OBJECT_TIMEOUT_MS", 12000);
-const S3_MAX_ATTEMPTS = getPositiveIntEnv("S3_MAX_ATTEMPTS", 2);
+const S3_CONNECT_TIMEOUT_MS = getPositiveIntEnv("S3_CONNECT_TIMEOUT_MS", 15000);
+const S3_REQUEST_TIMEOUT_MS = getPositiveIntEnv("S3_REQUEST_TIMEOUT_MS", 45000);
+const S3_PUT_OBJECT_TIMEOUT_MS = getPositiveIntEnv("S3_PUT_OBJECT_TIMEOUT_MS", 30000);
+const S3_MAX_ATTEMPTS = getPositiveIntEnv("S3_MAX_ATTEMPTS", 3);
 
 // S3 Configuration from environment variables
 const s3Config: S3ClientConfig = {
