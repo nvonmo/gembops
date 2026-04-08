@@ -15,6 +15,8 @@ const S3_CONNECT_TIMEOUT_MS = getPositiveIntEnv("S3_CONNECT_TIMEOUT_MS", 15000);
 const S3_REQUEST_TIMEOUT_MS = getPositiveIntEnv("S3_REQUEST_TIMEOUT_MS", 45000);
 const S3_PUT_OBJECT_TIMEOUT_MS = getPositiveIntEnv("S3_PUT_OBJECT_TIMEOUT_MS", 30000);
 const S3_MAX_ATTEMPTS = getPositiveIntEnv("S3_MAX_ATTEMPTS", 3);
+const S3_UPLOAD_RETRIES = getPositiveIntEnv("S3_UPLOAD_RETRIES", 3);
+const S3_RETRY_BASE_DELAY_MS = getPositiveIntEnv("S3_RETRY_BASE_DELAY_MS", 500);
 
 // S3 Configuration from environment variables
 const s3Config: S3ClientConfig = {
@@ -58,30 +60,47 @@ export async function uploadToS3(
     throw new Error("S3 is not configured. Set S3_BUCKET and S3_ACCESS_KEY_ID/S3_SECRET_ACCESS_KEY or S3_ENDPOINT");
   }
 
-  // Do not set ACL when bucket has "Object ownership: Bucket owner enforced" (ACLs disabled).
-  // Public read is handled by the bucket policy instead.
-  const command = new PutObjectCommand({
-    Bucket: S3_BUCKET,
-    Key: key,
-    Body: body,
-    ContentType: contentType,
-    CacheControl: "public, max-age=31536000", // 1 year – images rarely change
-  });
-
-  const startedAt = Date.now();
-  try {
-    await withTimeout(s3Client.send(command), S3_PUT_OBJECT_TIMEOUT_MS, `S3 upload timeout after ${S3_PUT_OBJECT_TIMEOUT_MS}ms`);
-    console.log("[S3] Uploaded:", key, `(${Date.now() - startedAt}ms)`);
-  } catch (error) {
-    console.error("[S3] Upload failed:", {
-      key,
-      contentType,
-      sizeBytes: body.length,
-      elapsedMs: Date.now() - startedAt,
-      message: (error as Error)?.message || String(error),
-    });
-    throw error;
+  let lastError: unknown = null;
+  for (let attempt = 1; attempt <= S3_UPLOAD_RETRIES; attempt++) {
+    const startedAt = Date.now();
+    try {
+      // Do not set ACL when bucket has "Object ownership: Bucket owner enforced" (ACLs disabled).
+      // Public read is handled by the bucket policy instead.
+      const command = new PutObjectCommand({
+        Bucket: S3_BUCKET,
+        Key: key,
+        Body: body,
+        ContentType: contentType,
+        CacheControl: "public, max-age=31536000", // 1 year – images rarely change
+      });
+      await withAbortTimeout(
+        (abortSignal) => s3Client.send(command, { abortSignal }),
+        S3_PUT_OBJECT_TIMEOUT_MS,
+        `S3 upload timeout after ${S3_PUT_OBJECT_TIMEOUT_MS}ms`
+      );
+      console.log("[S3] Uploaded:", key, `(${Date.now() - startedAt}ms)`, `attempt=${attempt}`);
+      lastError = null;
+      break;
+    } catch (error) {
+      lastError = error;
+      const retryable = isRetryableS3Error(error);
+      console.error("[S3] Upload failed:", {
+        key,
+        contentType,
+        sizeBytes: body.length,
+        attempt,
+        maxAttempts: S3_UPLOAD_RETRIES,
+        retryable,
+        elapsedMs: Date.now() - startedAt,
+        message: (error as Error)?.message || String(error),
+      });
+      if (!retryable || attempt >= S3_UPLOAD_RETRIES) {
+        throw error;
+      }
+      await sleep(backoffDelayMs(attempt));
+    }
   }
+  if (lastError) throw lastError;
 
   // Return public URL (ensure no newlines)
   if (S3_PUBLIC_URL) {
@@ -182,14 +201,57 @@ export function extractS3KeyFromUrl(url: string): string | null {
   }
 }
 
-async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, timeoutMessage: string): Promise<T> {
+function backoffDelayMs(attempt: number): number {
+  const jitter = Math.floor(Math.random() * 200);
+  return S3_RETRY_BASE_DELAY_MS * Math.pow(2, Math.max(0, attempt - 1)) + jitter;
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withAbortTimeout<T>(
+  operation: (abortSignal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> {
+  const controller = new AbortController();
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
   });
   try {
-    return await Promise.race([promise, timeoutPromise]);
+    return await Promise.race([operation(controller.signal), timeoutPromise]);
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
   }
+}
+
+export function isS3TimeoutLikeError(error: unknown): boolean {
+  const msg = ((error as Error)?.message || String(error) || "").toLowerCase();
+  const name = ((error as Error)?.name || "").toLowerCase();
+  return (
+    name.includes("timeout") ||
+    name.includes("abort") ||
+    msg.includes("timeout") ||
+    msg.includes("socket did not establish a connection") ||
+    msg.includes("etimedout") ||
+    msg.includes("econnreset") ||
+    msg.includes("eai_again") ||
+    msg.includes("abort")
+  );
+}
+
+function isRetryableS3Error(error: unknown): boolean {
+  const msg = ((error as Error)?.message || String(error) || "").toLowerCase();
+  if (isS3TimeoutLikeError(error)) return true;
+  return (
+    msg.includes("network") ||
+    msg.includes("requesttimeout") ||
+    msg.includes("slowdown") ||
+    msg.includes("throttl")
+  );
 }

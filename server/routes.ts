@@ -13,7 +13,7 @@ import fs from "fs";
 import { addWeeks, addMonths, parseISO, format } from "date-fns";
 import { s3Storage } from "./s3-storage.js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3, extractS3KeyFromUrl, s3Client, S3_BUCKET } from "./s3.js";
+import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3, extractS3KeyFromUrl, isS3TimeoutLikeError, s3Client, S3_BUCKET } from "./s3.js";
 import { convertMovToMp4, isMovFile } from "./video-convert.js";
 
 const MEXICO_TZ = "America/Mexico_City";
@@ -1330,6 +1330,9 @@ export async function registerRoutes(
       });
     } catch (error) {
       console.error("Error creating finding:", error);
+      if (isS3TimeoutLikeError(error)) {
+        return res.status(503).json({ message: "No se pudo subir la evidencia por una intermitencia de red. Intenta de nuevo en unos segundos." });
+      }
       res.status(500).json({ message: "Error al crear hallazgo" });
     }
   });
@@ -1553,6 +1556,9 @@ export async function registerRoutes(
         message: (error as Error)?.message || String(error),
         elapsedMs: Date.now() - requestStartedAt,
       });
+      if (isS3TimeoutLikeError(error)) {
+        return res.status(503).json({ message: "No se pudo subir la evidencia por una intermitencia de red. Intenta de nuevo en unos segundos." });
+      }
       res.status(500).json({ message: "Error al actualizar hallazgo" });
     }
   });
