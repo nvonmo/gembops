@@ -16,12 +16,7 @@ import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw, HelpCircle } from "lucide-react";
 import { cn, daysSinceFindingCreated, isOverdueByDate } from "@/lib/utils";
-import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
-import {
-  FINDING_LIST_THUMB_IMG_SIZE,
-  findingListPrimaryActionButtonClass,
-  findingListThumbButtonClass,
-} from "@/lib/finding-list-ui";
+import { findingListPrimaryActionButtonClass } from "@/lib/finding-list-ui";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface User {
@@ -326,7 +321,7 @@ export default function FollowUpTab() {
                   <Badge variant="secondary" className="ml-auto shrink-0">{items.length}</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1 px-3 sm:px-6 pb-3 sm:pb-6">
+              <CardContent className="space-y-0 px-3 sm:px-6 pb-3 sm:pb-6">
                 {items.map((f) => {
                   const isOverdue = f.dueDate ? isOverdueByDate(f.dueDate) : false;
                   const daysOpen = daysSinceFindingCreated(f.createdAt);
@@ -338,184 +333,206 @@ export default function FollowUpTab() {
                         : daysOpen === 1
                           ? "1 día"
                           : `${daysOpen} días`;
+                  const mediaUrls: string[] = (f as FindingWithUser & { photoUrls?: string[] }).photoUrls?.length
+                    ? (f as FindingWithUser & { photoUrls?: string[] }).photoUrls!
+                    : f.photoUrl
+                      ? [f.photoUrl]
+                      : [];
+                  const toAbs = (u: string) =>
+                    u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`;
+                  const canCloseRow = (f.canClose === true || user?.id === f.responsibleId) && f.status !== "closed";
+
                   return (
                     <div
                       key={f.id}
-                      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 border-b last:border-0"
+                      className="space-y-3 border-b border-border py-4 last:border-0 last:pb-0 first:pt-0"
                       data-testid={`followup-item-${f.id}`}
                     >
-                      <div className="flex-1 min-w-0 space-y-1.5 w-full sm:w-auto">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-                          <p className="text-sm leading-relaxed text-foreground min-w-0 sm:flex-1">{f.description}</p>
-                          {(() => {
-                            const mediaUrls: string[] = (f as FindingWithUser & { photoUrls?: string[] }).photoUrls?.length
-                              ? (f as FindingWithUser & { photoUrls?: string[] }).photoUrls!
-                              : f.photoUrl
-                                ? [f.photoUrl]
-                                : [];
-                            const toAbs = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
-                            if (mediaUrls.length === 0) return null;
+                      {/* Feed-style media: full width, full-res images; swipe when several */}
+                      {mediaUrls.length > 0 ? (
+                        <div
+                          className="flex w-full overflow-x-auto snap-x snap-mandatory rounded-xl border border-border bg-muted shadow-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                          aria-label={mediaUrls.length > 1 ? "Desliza para ver más fotos o videos" : undefined}
+                        >
+                          {mediaUrls.map((url, idx) => {
+                            const u = url?.trim();
+                            if (!u) return null;
+                            const absUrl = toAbs(u);
+                            const isVideo = u.match(/\.(mp4|webm|ogg|mov|avi)$/i) || u.includes("video");
+                            const isExternal =
+                              (absUrl.startsWith("http://") || absUrl.startsWith("https://")) &&
+                              !absUrl.startsWith(window.location.origin);
+                            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
                             return (
-                              <div className="flex gap-2 flex-wrap shrink-0 sm:justify-end">
-                                {mediaUrls.map((url, idx) => {
-                                  const u = url?.trim();
-                                  if (!u) return null;
-                                  const absUrl = toAbs(u);
-                                  const isVideo = u.match(/\.(mp4|webm|ogg|mov|avi)$/i) || u.includes("video");
-                                  const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
-                                  const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
-                                  return (
-                                    <button
-                                      key={idx}
-                                      type="button"
-                                      onClick={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        handleImageClick(u);
-                                      }}
-                                      className={findingListThumbButtonClass}
-                                      title="Ver imagen"
-                                    >
-                                      {isVideo ? (
-                                        <video
-                                          src={videoSrc}
-                                          referrerPolicy="no-referrer"
-                                          className="w-full h-full object-cover pointer-events-none"
-                                          muted
-                                          playsInline
-                                        />
-                                      ) : (
-                                        <img
-                                          src={listImageThumbnailSrc(absUrl)}
-                                          alt="Hallazgo"
-                                          width={FINDING_LIST_THUMB_IMG_SIZE}
-                                          height={FINDING_LIST_THUMB_IMG_SIZE}
-                                          loading="lazy"
-                                          decoding="async"
-                                          referrerPolicy="no-referrer"
-                                          fetchPriority={idx === 0 ? "high" : "low"}
-                                          className="w-full h-full object-cover pointer-events-none"
-                                        />
-                                      )}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            );
-                          })()}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {(f.area || (f as FindingWithUser).areas?.[0]) && (
-                            <Badge variant="outline" className="text-xs max-w-full sm:max-w-xs whitespace-normal break-words text-left">
-                              {f.area || (f as FindingWithUser).areas?.[0]}
-                            </Badge>
-                          )}
-                          <Badge variant="secondary" className="text-xs max-w-full sm:max-w-xs whitespace-normal break-words text-left">{f.category}</Badge>
-                          {f.dueDate ? (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <CalendarDays className="h-3 w-3 shrink-0" />
-                              {f.dueDate}
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-xs text-destructive">
-                              <CalendarDays className="h-3 w-3 shrink-0" />
-                              Sin fecha compromiso
-                            </span>
-                          )}
-                          {daysOpenLabel != null && f.createdAt && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <span className="flex items-center gap-1 text-xs text-muted-foreground cursor-default">
-                                  <Clock className="h-3 w-3 shrink-0" />
-                                  <span>
-                                    {daysOpen === 0 ? "Levantado hoy" : `Hace ${daysOpenLabel}`}
-                                  </span>
-                                </span>
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <p>
-                                  Días desde el levantamiento del hallazgo
-                                  {typeof f.createdAt === "string" || f.createdAt instanceof Date
-                                    ? ` (${new Date(f.createdAt).toLocaleDateString("es-MX", { dateStyle: "medium" })})`
-                                    : ""}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
-                        </div>
-                        {f.status === "closed" && f.closeEvidenceUrl && (
-                          <div className="mt-2">
-                            <p className="text-xs text-muted-foreground mb-1">Evidencia de cierre:</p>
-                            {(() => {
-                              const toAbs = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
-                              const absUrl = toAbs(f.closeEvidenceUrl!.trim());
-                              const isVideo = f.closeEvidenceUrl!.match(/\.(mp4|webm|ogg|mov|avi)$/i) || f.closeEvidenceUrl!.includes("video");
-                              const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
-                              const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
-                              return isVideo ? (
-                                <button
-                                  type="button"
-                                  onClick={() => handleImageClick(f.closeEvidenceUrl!)}
-                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border border-border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block touch-manipulation"
-                                >
-                                  <video
-                                    src={videoSrc}
-                                    referrerPolicy="no-referrer"
-                                    className="w-full h-full object-cover pointer-events-none"
-                                    muted
-                                    playsInline
-                                  />
-                                </button>
-                              ) : (
+                              <div key={idx} className="min-w-full shrink-0 snap-center snap-always">
                                 <button
                                   type="button"
                                   onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    handleImageClick(f.closeEvidenceUrl!);
+                                    handleImageClick(u);
                                   }}
-                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border border-border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                                  title="Ver evidencia"
+                                  className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:max-h-[400px]"
+                                  title="Ver a tamaño completo"
                                 >
-                                  <img
-                                    src={listImageThumbnailSrc(absUrl)}
-                                    alt="Evidencia de cierre"
-                                    width={128}
-                                    height={128}
-                                    loading="lazy"
-                                    decoding="async"
-                                    referrerPolicy="no-referrer"
-                                    fetchPriority="high"
-                                    className="w-full h-full object-cover pointer-events-none"
-                                  />
+                                  {isVideo ? (
+                                    <video
+                                      src={videoSrc}
+                                      referrerPolicy="no-referrer"
+                                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                                      muted
+                                      playsInline
+                                    />
+                                  ) : (
+                                    <img
+                                      src={absUrl}
+                                      alt={`Evidencia del hallazgo ${idx + 1}`}
+                                      loading={idx === 0 ? "eager" : "lazy"}
+                                      decoding="async"
+                                      referrerPolicy="no-referrer"
+                                      fetchPriority={idx === 0 ? "high" : "low"}
+                                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                                    />
+                                  )}
+                                  {mediaUrls.length > 1 && (
+                                    <span className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                                      {idx + 1}/{mediaUrls.filter((x) => x?.trim()).length}
+                                    </span>
+                                  )}
                                 </button>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 self-stretch sm:self-center sm:justify-start">
-                        {isOverdue ? (
-                          <Badge variant="destructive" className="text-xs">Vencido</Badge>
-                        ) : !f.dueDate ? (
-                          <Badge variant="outline" className="text-xs">Sin fecha</Badge>
-                        ) : (
-                          <Badge variant="default" className="text-xs">
-                            Abierto
-                          </Badge>
-                        )}
-                        {(f.canClose === true || user?.id === f.responsibleId) && f.status !== "closed" && (
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="flex aspect-[4/5] max-h-40 w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/40 px-4 text-center">
+                          <span className="text-xs font-medium text-muted-foreground">Sin foto ni video</span>
+                          <span className="text-[11px] text-muted-foreground/90">El hallazgo solo tiene descripción</span>
+                        </div>
+                      )}
+
+                      {/* Action bar (estado + Cerrar) */}
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {isOverdue ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Vencido
+                            </Badge>
+                          ) : !f.dueDate ? (
+                            <Badge variant="outline" className="text-xs">
+                              Sin fecha
+                            </Badge>
+                          ) : (
+                            <Badge variant="default" className="text-xs">
+                              Abierto
+                            </Badge>
+                          )}
+                        </div>
+                        {canCloseRow && (
                           <Button
                             size="sm"
                             variant="default"
                             onClick={() => handleCloseFinding(f)}
-                            className={cn(findingListPrimaryActionButtonClass)}
+                            className={cn(findingListPrimaryActionButtonClass, "shrink-0 gap-1.5")}
                           >
-                            <CheckCircle2 className="h-3 w-3" />
-                            <span className="hidden sm:inline">Cerrar</span>
+                            <CheckCircle2 className="h-4 w-4 shrink-0" />
+                            <span>Cerrar</span>
                           </Button>
                         )}
                       </div>
+
+                      {/* Caption: hallazgo */}
+                      <p className="text-[0.9375rem] leading-snug text-foreground">{f.description}</p>
+
+                      {/* Meta (área, categoría, fechas) */}
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        {(f.area || (f as FindingWithUser).areas?.[0]) && (
+                          <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
+                            {f.area || (f as FindingWithUser).areas?.[0]}
+                          </Badge>
+                        )}
+                        <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
+                          {f.category}
+                        </Badge>
+                        {f.dueDate ? (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                            Compromiso: {f.dueDate}
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-destructive">
+                            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                            Sin fecha compromiso
+                          </span>
+                        )}
+                        {daysOpenLabel != null && f.createdAt && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="flex cursor-default items-center gap-1 text-muted-foreground">
+                                <Clock className="h-3.5 w-3.5 shrink-0" />
+                                <span>{daysOpen === 0 ? "Levantado hoy" : `Hace ${daysOpenLabel}`}</span>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p>
+                                Días desde el levantamiento del hallazgo
+                                {typeof f.createdAt === "string" || f.createdAt instanceof Date
+                                  ? ` (${new Date(f.createdAt).toLocaleDateString("es-MX", { dateStyle: "medium" })})`
+                                  : ""}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
+
+                      {f.status === "closed" && f.closeEvidenceUrl && (
+                        <div className="rounded-lg border border-border bg-muted/30 p-2">
+                          <p className="mb-2 text-xs font-medium text-muted-foreground">Evidencia de cierre</p>
+                          {(() => {
+                            const absUrl = toAbs(f.closeEvidenceUrl!.trim());
+                            const isVideo = f.closeEvidenceUrl!.match(/\.(mp4|webm|ogg|mov|avi)$/i) || f.closeEvidenceUrl!.includes("video");
+                            const isExternal =
+                              (absUrl.startsWith("http://") || absUrl.startsWith("https://")) &&
+                              !absUrl.startsWith(window.location.origin);
+                            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
+                            return isVideo ? (
+                              <button
+                                type="button"
+                                onClick={() => handleImageClick(f.closeEvidenceUrl!)}
+                                className="relative block aspect-video w-full max-w-md overflow-hidden rounded-md border border-border touch-manipulation"
+                              >
+                                <video
+                                  src={videoSrc}
+                                  referrerPolicy="no-referrer"
+                                  className="h-full w-full object-cover pointer-events-none"
+                                  muted
+                                  playsInline
+                                />
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleImageClick(f.closeEvidenceUrl!);
+                                }}
+                                className="relative block aspect-video w-full max-w-md overflow-hidden rounded-md border border-border touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                title="Ver evidencia"
+                              >
+                                <img
+                                  src={absUrl}
+                                  alt="Evidencia de cierre"
+                                  loading="lazy"
+                                  decoding="async"
+                                  referrerPolicy="no-referrer"
+                                  className="h-full w-full object-cover"
+                                />
+                              </button>
+                            );
+                          })()}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
