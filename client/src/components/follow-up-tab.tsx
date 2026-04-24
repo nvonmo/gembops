@@ -15,7 +15,7 @@ import type { Finding, GembaWalk } from "@shared/schema";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw, HelpCircle } from "lucide-react";
-import { isOverdueByDate } from "@/lib/utils";
+import { daysSinceFindingCreated, isOverdueByDate } from "@/lib/utils";
 import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -324,6 +324,15 @@ export default function FollowUpTab() {
               <CardContent className="space-y-1 px-3 sm:px-6 pb-3 sm:pb-6">
                 {items.map((f) => {
                   const isOverdue = f.dueDate ? isOverdueByDate(f.dueDate) : false;
+                  const daysOpen = daysSinceFindingCreated(f.createdAt);
+                  const daysOpenLabel =
+                    daysOpen === null
+                      ? null
+                      : daysOpen === 0
+                        ? "Hoy"
+                        : daysOpen === 1
+                          ? "1 día"
+                          : `${daysOpen} días`;
                   return (
                     <div
                       key={f.id}
@@ -407,6 +416,26 @@ export default function FollowUpTab() {
                               <CalendarDays className="h-3 w-3 shrink-0" />
                               Sin fecha compromiso
                             </span>
+                          )}
+                          {daysOpenLabel != null && f.createdAt && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground cursor-default">
+                                  <Clock className="h-3 w-3 shrink-0" />
+                                  <span>
+                                    {daysOpen === 0 ? "Levantado hoy" : `Hace ${daysOpenLabel}`}
+                                  </span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p>
+                                  Días desde el levantamiento del hallazgo
+                                  {typeof f.createdAt === "string" || f.createdAt instanceof Date
+                                    ? ` (${new Date(f.createdAt).toLocaleDateString("es-MX", { dateStyle: "medium" })})`
+                                    : ""}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
                           )}
                         </div>
                         {f.status === "closed" && f.closeEvidenceUrl && (

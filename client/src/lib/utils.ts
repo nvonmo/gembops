@@ -13,3 +13,15 @@ export function isOverdueByDate(dueDate: string | null | undefined): boolean {
   const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   return todayStr > dueStr;
 }
+
+/** Calendar days from the finding creation date to today (local midnight), minimum 0. */
+export function daysSinceFindingCreated(createdAt: Date | string | null | undefined): number | null {
+  if (createdAt == null) return null;
+  const d = typeof createdAt === "string" ? new Date(createdAt) : createdAt;
+  if (Number.isNaN(d.getTime())) return null;
+  const createdDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffMs = today.getTime() - createdDay.getTime();
+  return Math.max(0, Math.floor(diffMs / (24 * 60 * 60 * 1000)));
+}
