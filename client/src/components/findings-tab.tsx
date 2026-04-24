@@ -1346,129 +1346,125 @@ function FindingCard({
     return raw.filter((u: unknown): u is string => typeof u === "string" && u.trim() !== "");
   }, [finding.id, finding.photoUrl, (finding as any).photoUrls]);
   const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
-  const mediaCount = mediaUrls.length;
+  const mediaCount = mediaUrls.filter((x) => x?.trim()).length;
   const closeEvidenceTrimmed =
     finding.status === "closed" && finding.closeEvidenceUrl ? String(finding.closeEvidenceUrl).trim() : "";
   const hasCloseEvidenceMedia = closeEvidenceTrimmed.length > 0;
 
   return (
-    <Card className="overflow-hidden p-0 space-y-0" data-testid={`card-finding-${finding.id}`}>
-      {mediaUrls.length > 0 && hasCloseEvidenceMedia && (
-        <div className="border-b border-border bg-muted/60 px-3 py-2 dark:bg-muted/30">
-          <p className="text-xs font-medium text-muted-foreground">Evidencia al levantar el hallazgo</p>
-        </div>
-      )}
-      {mediaUrls.length > 0 && (
-        <div
-          className="flex w-full overflow-x-auto snap-x snap-mandatory border-b border-border bg-muted [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-          aria-label={mediaCount > 1 ? "Desliza para ver más fotos o videos" : undefined}
-        >
-          {mediaUrls.map((url, idx) => {
-            const absUrl = toAbsolute(url.trim());
-            const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
-            const isExternal =
-              (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
-            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
-            return (
-              <div key={idx} className="min-w-full shrink-0 snap-center snap-always">
-                <button
-                  type="button"
-                  onClick={() => handleImageClick(absUrl)}
-                  className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:max-h-[420px]"
-                  title="Ver a tamaño completo"
-                  data-testid={isVideo ? `video-finding-${finding.id}-${idx}` : `img-finding-${finding.id}-${idx}`}
-                >
-                  {isVideo ? (
-                    <video
-                      src={videoSrc}
-                      referrerPolicy="no-referrer"
-                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                      muted
-                      playsInline
-                    />
-                  ) : (
-                    <img
-                      src={listImageThumbnailSrc(absUrl, LIST_IMAGE_CARD_FEED_MAX_PX)}
-                      alt={`Hallazgo ${idx + 1}`}
-                      loading={idx === 0 ? "eager" : "lazy"}
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      fetchPriority={idx === 0 ? "high" : "low"}
-                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                    />
-                  )}
-                  {mediaCount > 1 && (
-                    <span className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-                      {idx + 1}/{mediaCount}
-                    </span>
-                  )}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <div className="space-y-3 p-3 sm:p-4">
-        <div className="space-y-2 flex-1 min-w-0">
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {(isLeader || isAdmin) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(findingCardGhostButtonClass, "gap-1 px-2")}
-                  onClick={() => {
-                    setEditDescription(finding.description);
-                    setEditArea((finding as any).area || "");
-                    setEditCategory(finding.category);
-                    setEditPhotoFiles([]);
-                    setEditOpen(true);
-                  }}
-                  title="Editar hallazgo"
-                >
-                  <Edit className="h-3 w-3" />
-                  Editar
-                </Button>
-              )}
-              {isAdmin && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(findingCardGhostButtonClass, "gap-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10")}
-                  onClick={() => setDeleteOpen(true)}
-                  disabled={deleteMutation.isPending}
-                  title="Eliminar hallazgo"
-                  data-testid="button-delete-finding"
-                >
-                  <Trash2 className="h-3 w-3" />
-                  Eliminar
-                </Button>
-              )}
-              <Badge variant={statusInfo.variant} className="text-xs">
-                {statusInfo.label}
-              </Badge>
-              {(finding as any).riskIfRepeats && (
-                <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  Riesgo mayor si se repite
-                </Badge>
-              )}
-              {isOverdue && (
-                <Badge variant="destructive" className="text-xs">
-                  Vencido
-                </Badge>
-              )}
-              <Badge variant="secondary" className="text-xs max-w-full sm:max-w-xs whitespace-normal break-words text-left">
-                <Tag className="h-3 w-3 mr-1" />
-                {finding.category}
-              </Badge>
+    <Card className="space-y-3 p-3 sm:p-4" data-testid={`card-finding-${finding.id}`}>
+      <div className="flex gap-3 sm:gap-4">
+        <div className="w-[min(36vw,140px)] shrink-0 sm:w-40">
+          {mediaUrls.length > 0 ? (
+            <div
+              className="flex w-full overflow-x-auto snap-x snap-mandatory rounded-xl border border-border bg-muted shadow-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              aria-label={mediaCount > 1 ? "Desliza para ver más fotos o videos" : undefined}
+            >
+              {mediaUrls.map((url, idx) => {
+                const absUrl = toAbsolute(url.trim());
+                const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
+                const isExternal =
+                  (absUrl.startsWith("http://") || absUrl.startsWith("https://")) &&
+                  !absUrl.startsWith(window.location.origin);
+                const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
+                return (
+                  <div key={idx} className="min-w-full shrink-0 snap-center snap-always">
+                    <button
+                      type="button"
+                      onClick={() => handleImageClick(absUrl)}
+                      className="relative block aspect-[3/4] w-full touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                      title="Ver a tamaño completo"
+                      data-testid={isVideo ? `video-finding-${finding.id}-${idx}` : `img-finding-${finding.id}-${idx}`}
+                    >
+                      {isVideo ? (
+                        <video
+                          src={videoSrc}
+                          referrerPolicy="no-referrer"
+                          className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                          muted
+                          playsInline
+                        />
+                      ) : (
+                        <img
+                          src={listImageThumbnailSrc(absUrl, LIST_IMAGE_CARD_FEED_MAX_PX)}
+                          alt={`Hallazgo ${idx + 1}`}
+                          loading={idx === 0 ? "eager" : "lazy"}
+                          decoding="async"
+                          referrerPolicy="no-referrer"
+                          fetchPriority={idx === 0 ? "high" : "low"}
+                          className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                        />
+                      )}
+                      {mediaCount > 1 && (
+                        <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                          {idx + 1}/{mediaCount}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
+          ) : (
+            <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-border bg-muted/40 px-2 text-center">
+              <span className="text-[10px] font-medium leading-tight text-muted-foreground">Sin evidencia</span>
+            </div>
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             {(isLeader || isAdmin) && (
               <Button
                 variant="ghost"
                 size="sm"
-                className={cn(findingCardGhostButtonClass, "gap-1 px-2 text-amber-700 dark:text-amber-400 self-start sm:self-auto")}
+                className={cn(findingCardGhostButtonClass, "gap-1 px-2")}
+                onClick={() => {
+                  setEditDescription(finding.description);
+                  setEditArea((finding as any).area || "");
+                  setEditCategory(finding.category);
+                  setEditPhotoFiles([]);
+                  setEditOpen(true);
+                }}
+                title="Editar hallazgo"
+              >
+                <Edit className="h-3 w-3" />
+                Editar
+              </Button>
+            )}
+            {isAdmin && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(findingCardGhostButtonClass, "gap-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10")}
+                onClick={() => setDeleteOpen(true)}
+                disabled={deleteMutation.isPending}
+                title="Eliminar hallazgo"
+                data-testid="button-delete-finding"
+              >
+                <Trash2 className="h-3 w-3" />
+                Eliminar
+              </Button>
+            )}
+            <Badge variant={statusInfo.variant} className="text-xs">
+              {statusInfo.label}
+            </Badge>
+            {(finding as any).riskIfRepeats && (
+              <Badge variant="outline" className="text-xs border-amber-500 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40">
+                <AlertTriangle className="h-3 w-3 mr-1" />
+                Riesgo mayor si se repite
+              </Badge>
+            )}
+            {isOverdue && (
+              <Badge variant="destructive" className="text-xs">
+                Vencido
+              </Badge>
+            )}
+            {(isLeader || isAdmin) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(findingCardGhostButtonClass, "gap-1 px-2 text-amber-700 dark:text-amber-400")}
                 onClick={() => {
                   const next = !(finding as any).riskIfRepeats;
                   const message = next
@@ -1485,106 +1481,51 @@ function FindingCard({
               </Button>
             )}
           </div>
-          <p
-            className="text-[0.9375rem] leading-snug text-foreground"
-            data-testid={`text-finding-desc-${finding.id}`}
-          >
+          <p className="text-sm leading-snug text-foreground" data-testid={`text-finding-desc-${finding.id}`}>
             {finding.description}
           </p>
-        </div>
-      <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-        {(finding as any).area && (
-          <span className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            {(finding as any).area}
-          </span>
-        )}
-        <span className="flex items-center gap-1">
-          <User className="h-3.5 w-3.5 shrink-0" />
-          {finding.responsibleUser 
-            ? [finding.responsibleUser.firstName, finding.responsibleUser.lastName].filter(Boolean).join(" ") || finding.responsibleUser.username
-            : finding.responsibleId || "Sin asignar"}
-        </span>
-        {finding.departmentName && (
-          <span className="flex items-center gap-1">
-            <Users className="h-3.5 w-3.5 shrink-0" />
-            {finding.departmentName}
-          </span>
-        )}
-        <span className="flex items-center gap-1">
-          <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-          {finding.dueDate ? (
-            finding.dueDate
-          ) : isResponsible ? (
-            <span className="text-destructive">Fecha pendiente</span>
-          ) : (
-            <span className="text-muted-foreground">Sin fecha</span>
-          )}
-        </span>
-        {walkArea && (
-          <span className="flex items-center gap-1">
-            <MapPin className="h-3.5 w-3.5 shrink-0" />
-            {walkArea}
-          </span>
-        )}
-      </div>
-
-      {hasCloseEvidenceMedia && (
-        <div className="-mx-3 border-y border-border bg-muted sm:-mx-4">
-          <div className="flex items-start gap-2.5 bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/40">
-            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden />
-            <div className="min-w-0 space-y-0.5">
-              <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">Evidencia de cierre</p>
-              <p className="text-[11px] leading-snug text-emerald-800/90 dark:text-emerald-200/85">
-                Estado después de la acción correctiva (toca para ampliar)
-              </p>
-            </div>
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            {(finding as any).area && (
+              <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
+                {(finding as any).area}
+              </Badge>
+            )}
+            <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
+              <Tag className="h-3 w-3 mr-1" />
+              {finding.category}
+            </Badge>
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <User className="h-3.5 w-3.5 shrink-0" />
+              {finding.responsibleUser
+                ? [finding.responsibleUser.firstName, finding.responsibleUser.lastName].filter(Boolean).join(" ") ||
+                  finding.responsibleUser.username
+                : finding.responsibleId || "Sin asignar"}
+            </span>
+            {finding.departmentName && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <Users className="h-3.5 w-3.5 shrink-0" />
+                {finding.departmentName}
+              </span>
+            )}
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+              {finding.dueDate ? (
+                finding.dueDate
+              ) : isResponsible ? (
+                <span className="text-destructive">Fecha pendiente</span>
+              ) : (
+                <span>Sin fecha</span>
+              )}
+            </span>
+            {walkArea && (
+              <span className="flex items-center gap-1 text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                {walkArea}
+              </span>
+            )}
           </div>
-          {(() => {
-            const closeEvidenceAbs = toAbsolute(closeEvidenceTrimmed);
-            const isVideo =
-              closeEvidenceTrimmed.match(/\.(mp4|webm|ogg|mov|avi)$/i) || closeEvidenceTrimmed.includes("video");
-            const isExternal =
-              (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) &&
-              !closeEvidenceAbs.startsWith(window.location.origin);
-            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
-            return isVideo ? (
-              <button
-                type="button"
-                onClick={() => handleImageClick(closeEvidenceAbs)}
-                className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:max-h-[420px]"
-                title="Ver video de cierre a tamaño completo"
-                data-testid={`video-close-evidence-${finding.id}`}
-              >
-                <video
-                  src={videoSrc}
-                  referrerPolicy="no-referrer"
-                  className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                  muted
-                  playsInline
-                />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleImageClick(closeEvidenceAbs)}
-                className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:max-h-[420px]"
-                title="Ver imagen de cierre a tamaño completo"
-                data-testid={`img-close-evidence-${finding.id}`}
-              >
-                <img
-                  src={listImageThumbnailSrc(closeEvidenceAbs, LIST_IMAGE_CARD_FEED_MAX_PX)}
-                  alt="Evidencia de cierre"
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                  className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                />
-              </button>
-            );
-          })()}
         </div>
-      )}
+      </div>
 
       {finding.status === "closed" && (
         <div className="rounded-xl border border-border/80 bg-muted/20 p-3 space-y-2 dark:bg-muted/10">
@@ -1607,6 +1548,55 @@ function FindingCard({
               <p className="text-xs italic text-muted-foreground">Sin comentario ni evidencia adjunta</p>
             )
           )}
+        </div>
+      )}
+
+      {hasCloseEvidenceMedia && (
+        <div className="rounded-lg border border-border bg-muted/30 p-2">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">Evidencia de cierre</p>
+          {(() => {
+            const closeEvidenceAbs = toAbsolute(closeEvidenceTrimmed);
+            const isVideo =
+              closeEvidenceTrimmed.match(/\.(mp4|webm|ogg|mov|avi)$/i) || closeEvidenceTrimmed.includes("video");
+            const isExternal =
+              (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) &&
+              !closeEvidenceAbs.startsWith(window.location.origin);
+            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
+            return isVideo ? (
+              <button
+                type="button"
+                onClick={() => handleImageClick(closeEvidenceAbs)}
+                className="relative block aspect-video w-full max-w-md overflow-hidden rounded-md border border-border touch-manipulation"
+                title="Ver video de cierre"
+                data-testid={`video-close-evidence-${finding.id}`}
+              >
+                <video
+                  src={videoSrc}
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover pointer-events-none"
+                  muted
+                  playsInline
+                />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleImageClick(closeEvidenceAbs)}
+                className="relative block aspect-video w-full max-w-md overflow-hidden rounded-md border border-border touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                title="Ver imagen de cierre"
+                data-testid={`img-close-evidence-${finding.id}`}
+              >
+                <img
+                  src={listImageThumbnailSrc(closeEvidenceAbs, LIST_IMAGE_CARD_FEED_MAX_PX)}
+                  alt="Evidencia de cierre"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover"
+                />
+              </button>
+            );
+          })()}
         </div>
       )}
       {finding.status !== "closed" && (
@@ -1793,8 +1783,6 @@ function FindingCard({
           )}
         </div>
       )}
-
-      </div>
 
       {/* Image Modal: fuera del bloque status !== "closed" para que las miniaturas abran también en hallazgos cerrados */}
       <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
