@@ -37,7 +37,7 @@ export default function AdminDepartmentsTab() {
       console.error("Error creating department:", error);
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       let errorMessage = error.message || "Error al crear departamento";
@@ -64,7 +64,7 @@ export default function AdminDepartmentsTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al actualizar departamento", variant: "destructive" });
@@ -82,7 +82,7 @@ export default function AdminDepartmentsTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al eliminar departamento", variant: "destructive" });
@@ -101,7 +101,7 @@ export default function AdminDepartmentsTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al reactivar departamento", variant: "destructive" });

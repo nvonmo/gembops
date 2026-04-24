@@ -1,5 +1,5 @@
 export function isUnauthorizedError(error: Error): boolean {
-  return /^401: .*Unauthorized/.test(error.message);
+  return /^401: /i.test(error.message);
 }
 
 // Redirect to login with a toast notification
@@ -12,6 +12,6 @@ export function redirectToLogin(toast?: (options: { title: string; description: 
     });
   }
   setTimeout(() => {
-    window.location.href = "/api/login";
+    window.location.href = "/api/auth/login";
   }, 500);
 }

@@ -42,7 +42,7 @@ export default function AdminCategoriesTab() {
       console.error("Error creating category:", error);
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       // Parse error message to show more details
@@ -72,7 +72,7 @@ export default function AdminCategoriesTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al actualizar categoria", variant: "destructive" });
@@ -91,7 +91,7 @@ export default function AdminCategoriesTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al eliminar categoria", variant: "destructive" });
@@ -111,7 +111,7 @@ export default function AdminCategoriesTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al reactivar categoria", variant: "destructive" });

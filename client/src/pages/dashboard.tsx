@@ -58,7 +58,7 @@ export default function Dashboard() {
     } catch (error: any) {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesión expirada", description: "Iniciando sesión...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "No se pudo actualizar la contraseña", variant: "destructive" });

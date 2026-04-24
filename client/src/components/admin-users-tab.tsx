@@ -76,7 +76,7 @@ export default function AdminUsersTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al crear usuario", variant: "destructive" });
@@ -97,7 +97,7 @@ export default function AdminUsersTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al actualizar usuario", variant: "destructive" });
@@ -115,7 +115,7 @@ export default function AdminUsersTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al eliminar usuario", variant: "destructive" });

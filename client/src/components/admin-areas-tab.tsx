@@ -37,7 +37,7 @@ export default function AdminAreasTab() {
       console.error("Error creating area:", error);
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       // Parse error message to show more details
@@ -65,7 +65,7 @@ export default function AdminAreasTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al actualizar area", variant: "destructive" });
@@ -83,7 +83,7 @@ export default function AdminAreasTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al eliminar area", variant: "destructive" });
@@ -102,7 +102,7 @@ export default function AdminAreasTab() {
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
         toast({ title: "Sesion expirada", description: "Iniciando sesion...", variant: "destructive" });
-        setTimeout(() => (window.location.href = "/api/login"), 500);
+        setTimeout(() => (window.location.href = "/api/auth/login"), 500);
         return;
       }
       toast({ title: "Error", description: error.message || "Error al reactivar area", variant: "destructive" });
