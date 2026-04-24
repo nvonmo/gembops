@@ -23,13 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { cn, isOverdueByDate } from "@/lib/utils";
 import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
-import {
-  FINDING_LIST_THUMB_IMG_SIZE,
-  findingCardGhostButtonClass,
-  findingListThumbButtonClass,
-  findingListThumbClickableClass,
-  findingListThumbMoreClass,
-} from "@/lib/finding-list-ui";
+import { findingCardGhostButtonClass } from "@/lib/finding-list-ui";
 
 // Categories are now loaded dynamically from the API
 
@@ -1352,10 +1346,62 @@ function FindingCard({
     return raw.filter((u: unknown): u is string => typeof u === "string" && u.trim() !== "");
   }, [finding.id, finding.photoUrl, (finding as any).photoUrls]);
   const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
+  const mediaCount = mediaUrls.length;
 
   return (
-    <Card className="p-3 sm:p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+    <Card className="overflow-hidden p-0 space-y-0" data-testid={`card-finding-${finding.id}`}>
+      {mediaUrls.length > 0 && (
+        <div
+          className="flex w-full overflow-x-auto snap-x snap-mandatory border-b border-border bg-muted [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+          aria-label={mediaCount > 1 ? "Desliza para ver más fotos o videos" : undefined}
+        >
+          {mediaUrls.map((url, idx) => {
+            const absUrl = toAbsolute(url.trim());
+            const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
+            const isExternal =
+              (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
+            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
+            return (
+              <div key={idx} className="min-w-full shrink-0 snap-center snap-always">
+                <button
+                  type="button"
+                  onClick={() => handleImageClick(absUrl)}
+                  className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:max-h-[420px]"
+                  title="Ver a tamaño completo"
+                  data-testid={isVideo ? `video-finding-${finding.id}-${idx}` : `img-finding-${finding.id}-${idx}`}
+                >
+                  {isVideo ? (
+                    <video
+                      src={videoSrc}
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={absUrl}
+                      alt={`Hallazgo ${idx + 1}`}
+                      loading={idx === 0 ? "eager" : "lazy"}
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      fetchPriority={idx === 0 ? "high" : "low"}
+                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                    />
+                  )}
+                  {mediaCount > 1 && (
+                    <span className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                      {idx + 1}/{mediaCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="space-y-3 p-3 sm:p-4">
         <div className="space-y-2 flex-1 min-w-0">
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1431,62 +1477,13 @@ function FindingCard({
               </Button>
             )}
           </div>
-          <p className="text-sm leading-relaxed text-foreground" data-testid={`text-finding-desc-${finding.id}`}>
+          <p
+            className="text-[0.9375rem] leading-snug text-foreground"
+            data-testid={`text-finding-desc-${finding.id}`}
+          >
             {finding.description}
           </p>
         </div>
-        {mediaUrls.length > 0 && (
-          <div className="flex items-center gap-2 flex-wrap mt-1 sm:mt-0 sm:ml-2 shrink-0 sm:self-start">
-            {mediaUrls.slice(0, 4).map((url, idx) => {
-              const absUrl = toAbsolute(url.trim());
-              const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
-              const isExternal = (absUrl.startsWith("http://") || absUrl.startsWith("https://")) && !absUrl.startsWith(window.location.origin);
-              const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
-              return isVideo ? (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => handleImageClick(absUrl)}
-                  className={findingListThumbButtonClass}
-                  data-testid={`video-finding-${finding.id}-${idx}`}
-                >
-                  <video
-                    src={videoSrc}
-                    className="w-full h-full object-cover pointer-events-none"
-                    muted
-                    playsInline
-                  />
-                </button>
-              ) : (
-                <div key={idx} className={findingListThumbClickableClass}>
-                  <img
-                    src={listImageThumbnailSrc(absUrl)}
-                    alt={`Hallazgo ${idx + 1}`}
-                    width={FINDING_LIST_THUMB_IMG_SIZE}
-                    height={FINDING_LIST_THUMB_IMG_SIZE}
-                    loading="lazy"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    fetchPriority={idx === 0 ? "high" : "low"}
-                    className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleImageClick(absUrl)}
-                    data-testid={`img-finding-${finding.id}-${idx}`}
-                  />
-                </div>
-              );
-            })}
-            {mediaUrls.length > 4 && (
-              <button
-                type="button"
-                onClick={() => handleImageClick(toAbsolute(mediaUrls[4].trim()))}
-                className={findingListThumbMoreClass}
-              >
-                +{mediaUrls.length - 4}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
       <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
         {(finding as any).area && (
           <span className="flex items-center gap-1">
@@ -1759,6 +1756,8 @@ function FindingCard({
           )}
         </div>
       )}
+
+      </div>
 
       {/* Image Modal: fuera del bloque status !== "closed" para que las miniaturas abran también en hallazgos cerrados */}
       <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>

@@ -342,147 +342,151 @@ export default function FollowUpTab() {
                     u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`;
                   const canCloseRow = (f.canClose === true || user?.id === f.responsibleId) && f.status !== "closed";
 
+                  const mediaCount = mediaUrls.filter((x) => x?.trim()).length;
+
                   return (
                     <div
                       key={f.id}
-                      className="space-y-3 border-b border-border py-4 last:border-0 last:pb-0 first:pt-0"
+                      className="space-y-3 border-b border-border py-3.5 last:border-0 last:pb-0 first:pt-0"
                       data-testid={`followup-item-${f.id}`}
                     >
-                      {/* Feed-style media: full width, full-res images; swipe when several */}
-                      {mediaUrls.length > 0 ? (
-                        <div
-                          className="flex w-full overflow-x-auto snap-x snap-mandatory rounded-xl border border-border bg-muted shadow-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                          aria-label={mediaUrls.length > 1 ? "Desliza para ver más fotos o videos" : undefined}
-                        >
-                          {mediaUrls.map((url, idx) => {
-                            const u = url?.trim();
-                            if (!u) return null;
-                            const absUrl = toAbs(u);
-                            const isVideo = u.match(/\.(mp4|webm|ogg|mov|avi)$/i) || u.includes("video");
-                            const isExternal =
-                              (absUrl.startsWith("http://") || absUrl.startsWith("https://")) &&
-                              !absUrl.startsWith(window.location.origin);
-                            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
-                            return (
-                              <div key={idx} className="min-w-full shrink-0 snap-center snap-always">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleImageClick(u);
-                                  }}
-                                  className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:max-h-[400px]"
-                                  title="Ver a tamaño completo"
-                                >
-                                  {isVideo ? (
-                                    <video
-                                      src={videoSrc}
-                                      referrerPolicy="no-referrer"
-                                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                                      muted
-                                      playsInline
-                                    />
-                                  ) : (
-                                    <img
-                                      src={absUrl}
-                                      alt={`Evidencia del hallazgo ${idx + 1}`}
-                                      loading={idx === 0 ? "eager" : "lazy"}
-                                      decoding="async"
-                                      referrerPolicy="no-referrer"
-                                      fetchPriority={idx === 0 ? "high" : "low"}
-                                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
-                                    />
-                                  )}
-                                  {mediaUrls.length > 1 && (
-                                    <span className="pointer-events-none absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-                                      {idx + 1}/{mediaUrls.filter((x) => x?.trim()).length}
-                                    </span>
-                                  )}
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <div className="flex aspect-[4/5] max-h-40 w-full flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-muted/40 px-4 text-center">
-                          <span className="text-xs font-medium text-muted-foreground">Sin foto ni video</span>
-                          <span className="text-[11px] text-muted-foreground/90">El hallazgo solo tiene descripción</span>
-                        </div>
-                      )}
-
-                      {/* Action bar (estado + Cerrar) */}
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {isOverdue ? (
-                            <Badge variant="destructive" className="text-xs">
-                              Vencido
-                            </Badge>
-                          ) : !f.dueDate ? (
-                            <Badge variant="outline" className="text-xs">
-                              Sin fecha
-                            </Badge>
-                          ) : (
-                            <Badge variant="default" className="text-xs">
-                              Abierto
-                            </Badge>
-                          )}
-                        </div>
-                        {canCloseRow && (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => handleCloseFinding(f)}
-                            className={cn(findingListPrimaryActionButtonClass, "shrink-0 gap-1.5")}
+                      <div className="flex gap-3 sm:gap-4">
+                      {/* Columna media: grande pero acotada; carrusel si hay varias */}
+                      <div className="w-[min(36vw,140px)] shrink-0 sm:w-40">
+                        {mediaUrls.length > 0 ? (
+                          <div
+                            className="flex w-full overflow-x-auto snap-x snap-mandatory rounded-xl border border-border bg-muted shadow-sm [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                            aria-label={mediaCount > 1 ? "Desliza para ver más fotos o videos" : undefined}
                           >
-                            <CheckCircle2 className="h-4 w-4 shrink-0" />
-                            <span>Cerrar</span>
-                          </Button>
+                            {mediaUrls.map((url, idx) => {
+                              const u = url?.trim();
+                              if (!u) return null;
+                              const absUrl = toAbs(u);
+                              const isVideo = u.match(/\.(mp4|webm|ogg|mov|avi)$/i) || u.includes("video");
+                              const isExternal =
+                                (absUrl.startsWith("http://") || absUrl.startsWith("https://")) &&
+                                !absUrl.startsWith(window.location.origin);
+                              const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(absUrl)}` : absUrl;
+                              return (
+                                <div key={idx} className="min-w-full shrink-0 snap-center snap-always">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      handleImageClick(u);
+                                    }}
+                                    className="relative block aspect-[3/4] w-full touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                                    title="Ver a tamaño completo"
+                                  >
+                                    {isVideo ? (
+                                      <video
+                                        src={videoSrc}
+                                        referrerPolicy="no-referrer"
+                                        className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                                        muted
+                                        playsInline
+                                      />
+                                    ) : (
+                                      <img
+                                        src={absUrl}
+                                        alt={`Evidencia ${idx + 1}`}
+                                        loading={idx === 0 ? "eager" : "lazy"}
+                                        decoding="async"
+                                        referrerPolicy="no-referrer"
+                                        fetchPriority={idx === 0 ? "high" : "low"}
+                                        className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                                      />
+                                    )}
+                                    {mediaCount > 1 && (
+                                      <span className="pointer-events-none absolute bottom-1.5 right-1.5 rounded-full bg-black/55 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                                        {idx + 1}/{mediaCount}
+                                      </span>
+                                    )}
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex aspect-[3/4] w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-dashed border-border bg-muted/40 px-2 text-center">
+                            <span className="text-[10px] font-medium leading-tight text-muted-foreground">Sin evidencia</span>
+                          </div>
                         )}
                       </div>
 
-                      {/* Caption: hallazgo */}
-                      <p className="text-[0.9375rem] leading-snug text-foreground">{f.description}</p>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {isOverdue ? (
+                              <Badge variant="destructive" className="text-xs">
+                                Vencido
+                              </Badge>
+                            ) : !f.dueDate ? (
+                              <Badge variant="outline" className="text-xs">
+                                Sin fecha
+                              </Badge>
+                            ) : (
+                              <Badge variant="default" className="text-xs">
+                                Abierto
+                              </Badge>
+                            )}
+                          </div>
+                          {canCloseRow && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleCloseFinding(f)}
+                              className={cn(findingListPrimaryActionButtonClass, "shrink-0 gap-1.5")}
+                            >
+                              <CheckCircle2 className="h-4 w-4 shrink-0" />
+                              <span>Cerrar</span>
+                            </Button>
+                          )}
+                        </div>
 
-                      {/* Meta (área, categoría, fechas) */}
-                      <div className="flex flex-wrap items-center gap-2 text-xs">
-                        {(f.area || (f as FindingWithUser).areas?.[0]) && (
-                          <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
-                            {f.area || (f as FindingWithUser).areas?.[0]}
+                        <p className="text-sm leading-snug text-foreground">{f.description}</p>
+
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          {(f.area || (f as FindingWithUser).areas?.[0]) && (
+                            <Badge variant="outline" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
+                              {f.area || (f as FindingWithUser).areas?.[0]}
+                            </Badge>
+                          )}
+                          <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
+                            {f.category}
                           </Badge>
-                        )}
-                        <Badge variant="secondary" className="max-w-full whitespace-normal break-words text-left text-xs sm:max-w-md">
-                          {f.category}
-                        </Badge>
-                        {f.dueDate ? (
-                          <span className="flex items-center gap-1 text-muted-foreground">
-                            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                            Compromiso: {f.dueDate}
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-destructive">
-                            <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                            Sin fecha compromiso
-                          </span>
-                        )}
-                        {daysOpenLabel != null && f.createdAt && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="flex cursor-default items-center gap-1 text-muted-foreground">
-                                <Clock className="h-3.5 w-3.5 shrink-0" />
-                                <span>{daysOpen === 0 ? "Levantado hoy" : `Hace ${daysOpenLabel}`}</span>
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p>
-                                Días desde el levantamiento del hallazgo
-                                {typeof f.createdAt === "string" || f.createdAt instanceof Date
-                                  ? ` (${new Date(f.createdAt).toLocaleDateString("es-MX", { dateStyle: "medium" })})`
-                                  : ""}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
+                          {f.dueDate ? (
+                            <span className="flex items-center gap-1 text-muted-foreground">
+                              <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                              {f.dueDate}
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-destructive">
+                              <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                              Sin fecha compromiso
+                            </span>
+                          )}
+                          {daysOpenLabel != null && f.createdAt && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="flex cursor-default items-center gap-1 text-muted-foreground">
+                                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                                  <span>{daysOpen === 0 ? "Hoy" : `Hace ${daysOpenLabel}`}</span>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p>
+                                  Días desde el levantamiento del hallazgo
+                                  {typeof f.createdAt === "string" || f.createdAt instanceof Date
+                                    ? ` (${new Date(f.createdAt).toLocaleDateString("es-MX", { dateStyle: "medium" })})`
+                                    : ""}
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
+                        </div>
+                      </div>
                       </div>
 
                       {f.status === "closed" && f.closeEvidenceUrl && (
