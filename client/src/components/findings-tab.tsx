@@ -23,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { cn, isOverdueByDate } from "@/lib/utils";
 import { findingCardGhostButtonClass } from "@/lib/finding-list-ui";
+import { listImageThumbnailSrc, LIST_IMAGE_CARD_FEED_MAX_PX } from "@/lib/list-image-thumbnail";
 
 // Categories are now loaded dynamically from the API
 
@@ -1387,7 +1388,7 @@ function FindingCard({
                     />
                   ) : (
                     <img
-                      src={absUrl}
+                      src={listImageThumbnailSrc(absUrl, LIST_IMAGE_CARD_FEED_MAX_PX)}
                       alt={`Hallazgo ${idx + 1}`}
                       loading={idx === 0 ? "eager" : "lazy"}
                       decoding="async"
@@ -1572,7 +1573,7 @@ function FindingCard({
                 data-testid={`img-close-evidence-${finding.id}`}
               >
                 <img
-                  src={closeEvidenceAbs}
+                  src={listImageThumbnailSrc(closeEvidenceAbs, LIST_IMAGE_CARD_FEED_MAX_PX)}
                   alt="Evidencia de cierre"
                   loading="lazy"
                   decoding="async"

@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw, HelpCircle } from "lucide-react";
 import { cn, daysSinceFindingCreated, isOverdueByDate } from "@/lib/utils";
 import { findingListPrimaryActionButtonClass } from "@/lib/finding-list-ui";
+import { listImageThumbnailSrc, LIST_IMAGE_CARD_FEED_MAX_PX } from "@/lib/list-image-thumbnail";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface User {
@@ -389,7 +390,7 @@ export default function FollowUpTab() {
                                       />
                                     ) : (
                                       <img
-                                        src={absUrl}
+                                        src={listImageThumbnailSrc(absUrl, LIST_IMAGE_CARD_FEED_MAX_PX)}
                                         alt={`Evidencia ${idx + 1}`}
                                         loading={idx === 0 ? "eager" : "lazy"}
                                         decoding="async"
@@ -525,7 +526,7 @@ export default function FollowUpTab() {
                                 title="Ver evidencia"
                               >
                                 <img
-                                  src={absUrl}
+                                  src={listImageThumbnailSrc(absUrl, LIST_IMAGE_CARD_FEED_MAX_PX)}
                                   alt="Evidencia de cierre"
                                   loading="lazy"
                                   decoding="async"

@@ -18,7 +18,9 @@ import { convertMovToMp4, isMovFile } from "./video-convert.js";
 import { optimizeImageBufferForUpload } from "./image-optimize.js";
 import {
   buildListPreviewJpeg,
+  clampListPreviewMaxPx,
   isListPreviewable,
+  LIST_PREVIEW_DEFAULT_MAX_PX,
   makePreviewEtag,
   MAX_INPUT_BYTES,
   skipListPreview,
@@ -242,6 +244,13 @@ export async function registerRoutes(
         return redirectOriginal(decoded);
       }
 
+      let previewMax = LIST_PREVIEW_DEFAULT_MAX_PX;
+      const maxQ = req.query.max;
+      if (typeof maxQ === "string" && /^\d{1,3}$/.test(maxQ.trim())) {
+        const n = parseInt(maxQ.trim(), 10);
+        if (!Number.isNaN(n)) previewMax = clampListPreviewMaxPx(n);
+      }
+
       const mimetypeForKey = (k: string): string => {
         if (/\.jpe?g$/i.test(k)) return "image/jpeg";
         if (/\.png$/i.test(k)) return "image/png";
@@ -284,8 +293,8 @@ export async function registerRoutes(
         if (stat.size > MAX_INPUT_BYTES) {
           return redirectOriginal(decoded);
         }
-        const etag = makePreviewEtag(`local-${stat.mtimeMs}`, key);
-        const cacheKey = `local:${filePath}:${stat.mtimeMs}`;
+        const etag = makePreviewEtag(`local-${stat.mtimeMs}`, key, previewMax);
+        const cacheKey = `local:${filePath}:${stat.mtimeMs}:${previewMax}`;
         const hit = previewJpegLru.get(cacheKey);
         if (hit) {
           previewLruTouch(cacheKey, hit);
@@ -294,7 +303,7 @@ export async function registerRoutes(
         const buf = await fs.promises.readFile(filePath);
         let jpeg: Buffer;
         try {
-          jpeg = await buildListPreviewJpeg(buf, mimetype, key);
+          jpeg = await buildListPreviewJpeg(buf, mimetype, key, previewMax);
         } catch (e) {
           console.warn("[image-preview] fallback to original (local)", key, (e as Error)?.message);
           return redirectOriginal(decoded);
@@ -315,7 +324,7 @@ export async function registerRoutes(
         return redirectOriginal(decoded);
       }
       const s3Etag = head.ETag || String(len);
-      const etag = makePreviewEtag(s3Etag, key);
+      const etag = makePreviewEtag(s3Etag, key, previewMax);
       const inm0 = req.headers["if-none-match"] as string | undefined;
       if (inm0) {
         const a = normalizeEtagHeader(inm0);
@@ -330,7 +339,7 @@ export async function registerRoutes(
           return;
         }
       }
-      const cacheKey = `s3:${S3_BUCKET}:${key}:${s3Etag}`;
+      const cacheKey = `s3:${S3_BUCKET}:${key}:${s3Etag}:${previewMax}`;
       const cached = previewJpegLru.get(cacheKey);
       if (cached) {
         previewLruTouch(cacheKey, cached);
@@ -346,7 +355,7 @@ export async function registerRoutes(
       const full = await streamToBuffer(g.Body as any);
       let jpeg: Buffer;
       try {
-        jpeg = await buildListPreviewJpeg(full, mime, key);
+        jpeg = await buildListPreviewJpeg(full, mime, key, previewMax);
       } catch (e) {
         console.warn("[image-preview] fallback to original", key, (e as Error)?.message);
         return redirectOriginal(decoded);
