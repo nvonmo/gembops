@@ -13,7 +13,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/auth-utils";
 import { useAuth } from "@/hooks/use-auth";
 import type { Finding, GembaWalk } from "@shared/schema";
-import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download, AlertTriangle, HelpCircle, Trash2 } from "lucide-react";
+import { Plus, User, Users, CalendarDays, Tag, MapPin, Edit, Search, Filter, X, Star, ArrowUpDown, ArrowUp, ArrowDown, ChevronLeft, ChevronRight, Mic, MicOff, RefreshCw, Download, AlertTriangle, HelpCircle, Trash2, CheckCircle2 } from "lucide-react";
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -22,7 +22,6 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { cn, isOverdueByDate } from "@/lib/utils";
-import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
 import { findingCardGhostButtonClass } from "@/lib/finding-list-ui";
 
 // Categories are now loaded dynamically from the API
@@ -1347,9 +1346,17 @@ function FindingCard({
   }, [finding.id, finding.photoUrl, (finding as any).photoUrls]);
   const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
   const mediaCount = mediaUrls.length;
+  const closeEvidenceTrimmed =
+    finding.status === "closed" && finding.closeEvidenceUrl ? String(finding.closeEvidenceUrl).trim() : "";
+  const hasCloseEvidenceMedia = closeEvidenceTrimmed.length > 0;
 
   return (
     <Card className="overflow-hidden p-0 space-y-0" data-testid={`card-finding-${finding.id}`}>
+      {mediaUrls.length > 0 && hasCloseEvidenceMedia && (
+        <div className="border-b border-border bg-muted/60 px-3 py-2 dark:bg-muted/30">
+          <p className="text-xs font-medium text-muted-foreground">Evidencia al levantar el hallazgo</p>
+        </div>
+      )}
       {mediaUrls.length > 0 && (
         <div
           className="flex w-full overflow-x-auto snap-x snap-mandatory border-b border-border bg-muted [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
@@ -1520,55 +1527,84 @@ function FindingCard({
           </span>
         )}
       </div>
+
+      {hasCloseEvidenceMedia && (
+        <div className="-mx-3 border-y border-border bg-muted sm:-mx-4">
+          <div className="flex items-start gap-2.5 bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950/40">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400" aria-hidden />
+            <div className="min-w-0 space-y-0.5">
+              <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">Evidencia de cierre</p>
+              <p className="text-[11px] leading-snug text-emerald-800/90 dark:text-emerald-200/85">
+                Estado después de la acción correctiva (toca para ampliar)
+              </p>
+            </div>
+          </div>
+          {(() => {
+            const closeEvidenceAbs = toAbsolute(closeEvidenceTrimmed);
+            const isVideo =
+              closeEvidenceTrimmed.match(/\.(mp4|webm|ogg|mov|avi)$/i) || closeEvidenceTrimmed.includes("video");
+            const isExternal =
+              (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) &&
+              !closeEvidenceAbs.startsWith(window.location.origin);
+            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
+            return isVideo ? (
+              <button
+                type="button"
+                onClick={() => handleImageClick(closeEvidenceAbs)}
+                className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:max-h-[420px]"
+                title="Ver video de cierre a tamaño completo"
+                data-testid={`video-close-evidence-${finding.id}`}
+              >
+                <video
+                  src={videoSrc}
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                  muted
+                  playsInline
+                />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => handleImageClick(closeEvidenceAbs)}
+                className="relative block aspect-[4/5] w-full max-h-[min(85vw,440px)] touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:max-h-[420px]"
+                title="Ver imagen de cierre a tamaño completo"
+                data-testid={`img-close-evidence-${finding.id}`}
+              >
+                <img
+                  src={closeEvidenceAbs}
+                  alt="Evidencia de cierre"
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                  className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                />
+              </button>
+            );
+          })()}
+        </div>
+      )}
+
       {finding.status === "closed" && (
-        <div className="border-t pt-2 space-y-2">
+        <div className="rounded-xl border border-border/80 bg-muted/20 p-3 space-y-2 dark:bg-muted/10">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+            <span className="text-sm font-semibold text-foreground">Resumen del cierre</span>
+          </div>
           {(finding as { closedByUser?: User | null }).closedByUser && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Cerrado por:</span>{" "}
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground/90">Cerrado por:</span>{" "}
               {[finding.closedByUser!.firstName, finding.closedByUser!.lastName].filter(Boolean).join(" ") || finding.closedByUser!.username}
             </p>
           )}
-          {finding.closeComment && (
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Comentario de cierre:</span> {finding.closeComment}
+          {finding.closeComment ? (
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <span className="font-medium text-foreground/90">Comentario:</span> {finding.closeComment}
             </p>
-          )}
-          {finding.closeEvidenceUrl && (
-            <div className="space-y-1">
-              <p className="text-xs font-medium text-muted-foreground">Evidencia de cierre:</p>
-              {(() => {
-                const closeEvidenceAbs = toAbsolute(finding.closeEvidenceUrl!.trim());
-                const isVideo = finding.closeEvidenceUrl!.match(/\.(mp4|webm|ogg|mov|avi)$/i) || finding.closeEvidenceUrl!.includes("video");
-                const isExternal = (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) && !closeEvidenceAbs.startsWith(window.location.origin);
-                const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
-                return isVideo ? (
-                  <button
-                    type="button"
-                    onClick={() => handleImageClick(closeEvidenceAbs)}
-                    className="w-full max-w-xs rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 block"
-                  >
-                    <video
-                      src={videoSrc}
-                      className="w-full h-auto object-cover pointer-events-none"
-                      muted
-                      playsInline
-                    />
-                  </button>
-                ) : (
-                  <div className="w-full max-w-xs rounded-md border overflow-hidden bg-muted">
-                    <img
-                      src={listImageThumbnailSrc(closeEvidenceAbs)}
-                      alt="Evidencia de cierre"
-                      loading="lazy"
-                      decoding="async"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-auto object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                      onClick={() => handleImageClick(closeEvidenceAbs)}
-                    />
-                  </div>
-                );
-              })()}
-            </div>
+          ) : (
+            !hasCloseEvidenceMedia && (
+              <p className="text-xs italic text-muted-foreground">Sin comentario ni evidencia adjunta</p>
+            )
           )}
         </div>
       )}
