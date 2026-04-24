@@ -1185,6 +1185,7 @@ function FindingCard({
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState(false);
+  const [modalFullImageLoaded, setModalFullImageLoaded] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editDescription, setEditDescription] = useState(finding.description);
   const [editArea, setEditArea] = useState((finding as any).area || "");
@@ -1216,6 +1217,7 @@ function FindingCard({
   const handleImageClick = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl);
     setVideoLoadError(false);
+    setModalFullImageLoaded(false);
     setImageModalOpen(true);
   };
 
@@ -1797,7 +1799,16 @@ function FindingCard({
       )}
 
       {/* Image Modal: fuera del bloque status !== "closed" para que las miniaturas abran también en hallazgos cerrados */}
-      <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
+      <Dialog
+        open={imageModalOpen}
+        onOpenChange={(open) => {
+          setImageModalOpen(open);
+          if (!open) {
+            setModalFullImageLoaded(false);
+            setVideoLoadError(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-2 sm:p-0">
           <DialogHeader className="p-4 border-b space-y-1.5">
             <DialogTitle className="text-lg">
@@ -1848,15 +1859,32 @@ function FindingCard({
                     </Button>
                   </>
                 ) : (
-                  <img
-                    src={displayUrl}
-                    alt="Imagen ampliada"
-                    loading="eager"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    fetchPriority="high"
-                    className="max-w-full max-h-[70vh] object-contain rounded-md"
-                  />
+                  <div className="relative">
+                    {!modalFullImageLoaded && (
+                      <img
+                        src={listImageThumbnailSrc(displayUrl, LIST_IMAGE_CARD_FEED_MAX_PX)}
+                        alt="Imagen ampliada (vista previa)"
+                        loading="eager"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        fetchPriority="high"
+                        className="max-w-full max-h-[70vh] object-contain rounded-md"
+                      />
+                    )}
+                    <img
+                      src={displayUrl}
+                      alt="Imagen ampliada"
+                      loading="eager"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      fetchPriority="high"
+                      onLoad={() => setModalFullImageLoaded(true)}
+                      className={cn(
+                        "max-w-full max-h-[70vh] object-contain rounded-md",
+                        modalFullImageLoaded ? "opacity-100" : "absolute inset-0 opacity-0"
+                      )}
+                    />
+                  </div>
                 );
               })()
             )}

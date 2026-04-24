@@ -37,6 +37,7 @@ export default function FollowUpTab() {
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [videoLoadError, setVideoLoadError] = useState(false);
+  const [modalFullImageLoaded, setModalFullImageLoaded] = useState(false);
   const [closeDialogOpen, setCloseDialogOpen] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState<FindingWithUser | null>(null);
   const [closeComment, setCloseComment] = useState("");
@@ -45,6 +46,7 @@ export default function FollowUpTab() {
   const handleImageClick = (imageUrl: string) => {
     setSelectedImageUrl(imageUrl);
     setVideoLoadError(false);
+    setModalFullImageLoaded(false);
     setImageModalOpen(true);
   };
 
@@ -548,7 +550,16 @@ export default function FollowUpTab() {
       </div>
 
       {/* Image/Video Modal */}
-      <Dialog open={imageModalOpen} onOpenChange={setImageModalOpen}>
+      <Dialog
+        open={imageModalOpen}
+        onOpenChange={(open) => {
+          setImageModalOpen(open);
+          if (!open) {
+            setModalFullImageLoaded(false);
+            setVideoLoadError(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-2 sm:p-0">
           <div className="p-4 border-b">
             <DialogTitle className="text-lg">
@@ -597,15 +608,32 @@ export default function FollowUpTab() {
                     </Button>
                   </>
                 ) : (
-                  <img
-                    src={displayUrl}
-                    alt="Imagen ampliada"
-                    loading="eager"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    fetchPriority="high"
-                    className="max-w-full max-h-[70vh] object-contain rounded-md"
-                  />
+                  <div className="relative">
+                    {!modalFullImageLoaded && (
+                      <img
+                        src={listImageThumbnailSrc(displayUrl, LIST_IMAGE_CARD_FEED_MAX_PX)}
+                        alt="Imagen ampliada (vista previa)"
+                        loading="eager"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        fetchPriority="high"
+                        className="max-w-full max-h-[70vh] object-contain rounded-md"
+                      />
+                    )}
+                    <img
+                      src={displayUrl}
+                      alt="Imagen ampliada"
+                      loading="eager"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      fetchPriority="high"
+                      onLoad={() => setModalFullImageLoaded(true)}
+                      className={cn(
+                        "max-w-full max-h-[70vh] object-contain rounded-md",
+                        modalFullImageLoaded ? "opacity-100" : "absolute inset-0 opacity-0"
+                      )}
+                    />
+                  </div>
                 );
               })()
             )}
