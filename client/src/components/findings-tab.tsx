@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1338,7 +1338,11 @@ function FindingCard({
     updateMutation.mutate({ dueDate });
   };
 
-  const mediaUrls: string[] = (finding as any).photoUrls?.length ? (finding as any).photoUrls : (finding.photoUrl ? [finding.photoUrl] : []);
+  const mediaUrls: string[] = useMemo(() => {
+    const raw = (finding as any).photoUrls?.length ? (finding as any).photoUrls : finding.photoUrl ? [finding.photoUrl] : [];
+    if (!Array.isArray(raw)) return [];
+    return raw.filter((u: unknown): u is string => typeof u === "string" && u.trim() !== "");
+  }, [finding.id, finding.photoUrl, (finding as any).photoUrls]);
   const toAbsolute = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
 
   return (
@@ -1450,9 +1454,12 @@ function FindingCard({
                   <img
                     src={absUrl}
                     alt={`Hallazgo ${idx + 1}`}
+                    width={56}
+                    height={56}
                     loading="lazy"
                     decoding="async"
                     referrerPolicy="no-referrer"
+                    fetchPriority={idx === 0 ? "high" : "low"}
                     className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
                     onClick={() => handleImageClick(absUrl)}
                     data-testid={`img-finding-${finding.id}-${idx}`}
@@ -1803,6 +1810,7 @@ function FindingCard({
                     loading="eager"
                     decoding="async"
                     referrerPolicy="no-referrer"
+                    fetchPriority="high"
                     className="max-w-full max-h-[70vh] object-contain rounded-md"
                   />
                 );

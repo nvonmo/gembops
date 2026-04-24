@@ -17,6 +17,7 @@ const S3_PUT_OBJECT_TIMEOUT_MS = getPositiveIntEnv("S3_PUT_OBJECT_TIMEOUT_MS", 3
 const S3_MAX_ATTEMPTS = getPositiveIntEnv("S3_MAX_ATTEMPTS", 3);
 const S3_UPLOAD_RETRIES = getPositiveIntEnv("S3_UPLOAD_RETRIES", 3);
 const S3_RETRY_BASE_DELAY_MS = getPositiveIntEnv("S3_RETRY_BASE_DELAY_MS", 500);
+const S3_UPLOAD_WARN_MS = getPositiveIntEnv("S3_UPLOAD_WARN_MS", 5000);
 
 // S3 Configuration from environment variables
 const s3Config: S3ClientConfig = {
@@ -78,7 +79,12 @@ export async function uploadToS3(
         S3_PUT_OBJECT_TIMEOUT_MS,
         `S3 upload timeout after ${S3_PUT_OBJECT_TIMEOUT_MS}ms`
       );
-      console.log("[S3] Uploaded:", key, `(${Date.now() - startedAt}ms)`, `attempt=${attempt}`);
+      const elapsed = Date.now() - startedAt;
+      if (elapsed >= S3_UPLOAD_WARN_MS) {
+        console.warn("[S3] Slow upload:", { key, elapsedMs: elapsed, attempt });
+      } else {
+        console.log("[S3] Uploaded:", key, `(${elapsed}ms)`, `attempt=${attempt}`);
+      }
       lastError = null;
       break;
     } catch (error) {
@@ -167,6 +173,9 @@ export function getPublicUrlForKey(key: string): string {
 /**
  * If S3 is configured and url is a relative /uploads/ path, return full S3 URL; else return url as-is.
  * Always sanitizes the result so no newlines break the image src.
+ *
+ * Images should be loaded in the browser from this direct HTTPS URL (browser cache + S3 Cache-Control).
+ * Use GET /api/media only for cross-origin video playback (CORS), not for static images.
  */
 export function resolvePhotoUrl(url: string | null): string | null {
   if (!url) return null;

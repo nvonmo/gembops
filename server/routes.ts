@@ -12,11 +12,27 @@ import path from "path";
 import fs from "fs";
 import { addWeeks, addMonths, parseISO, format } from "date-fns";
 import { s3Storage } from "./s3-storage.js";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3, extractS3KeyFromUrl, isS3TimeoutLikeError, s3Client, S3_BUCKET } from "./s3.js";
 import { convertMovToMp4, isMovFile } from "./video-convert.js";
+import { optimizeImageBufferForUpload } from "./image-optimize.js";
 
 const MEXICO_TZ = "America/Mexico_City";
+
+const MEDIA_SLOW_MS = Math.max(500, parseInt(process.env.MEDIA_PROXY_SLOW_LOG_MS || "2500", 10) || 2500);
+
+/** Normalize ETag / If-None-Match for comparison (strip W/ and quotes). */
+function normalizeEtagHeader(value: string | undefined): string | null {
+  if (!value) return null;
+  const first = value.split(",")[0].trim();
+  const rest = first.startsWith("W/") ? first.slice(2).trim() : first;
+  return rest.replace(/^"+|"+$/g, "");
+}
+
+/** uploads/* keys are unique per file — long immutable cache at proxy is safe. */
+function cacheControlForMediaProxy(): string {
+  return "public, max-age=31536000, immutable";
+}
 
 /** Format date in Mexico timezone for reports. */
 function formatDateMexico(d: Date): string {
@@ -104,8 +120,10 @@ export async function registerRoutes(
     });
   }
 
-  // Proxy S3 media (video/images) to avoid CORS so <video> can play in the app
+  // Proxy S3 media (primarily video) to avoid CORS so <video> can play in the app.
+  // Images should load from direct S3 URLs; this route still supports video and legacy clients.
   app.get("/api/media", isAuthenticated, async (req: any, res) => {
+    const startedAt = Date.now();
     try {
       const rawUrl = req.query.url;
       if (!rawUrl || typeof rawUrl !== "string") {
@@ -119,6 +137,29 @@ export async function registerRoutes(
         return res.status(503).json({ message: "S3 not configured" });
       }
       const range = req.headers.range as string | undefined;
+      const ifNoneMatch = req.headers["if-none-match"] as string | undefined;
+
+      // Conditional GET: avoid re-downloading body when ETag matches (no Range — players use Range for video).
+      if (!range && ifNoneMatch) {
+        try {
+          const head = await s3Client.send(new HeadObjectCommand({ Bucket: S3_BUCKET, Key: key }));
+          const etag = head.ETag;
+          if (etag && normalizeEtagHeader(ifNoneMatch) === normalizeEtagHeader(etag)) {
+            res.status(304);
+            res.setHeader("ETag", etag);
+            res.setHeader("Cache-Control", cacheControlForMediaProxy());
+            if (head.ContentType) res.setHeader("Content-Type", head.ContentType);
+            return res.end();
+          }
+        } catch (headErr: any) {
+          const status = headErr?.$metadata?.httpStatusCode;
+          if (status === 404) {
+            return res.status(404).json({ message: "Not found" });
+          }
+          throw headErr;
+        }
+      }
+
       const command = new GetObjectCommand({
         Bucket: S3_BUCKET,
         Key: key,
@@ -132,7 +173,8 @@ export async function registerRoutes(
       const contentType = response.ContentType ?? (key.match(/\.mp4$/i) ? "video/mp4" : "application/octet-stream");
       res.setHeader("Content-Type", contentType);
       res.setHeader("Accept-Ranges", "bytes");
-      res.setHeader("Cache-Control", "public, max-age=3600");
+      res.setHeader("Cache-Control", cacheControlForMediaProxy());
+      if (response.ETag) res.setHeader("ETag", response.ETag);
       const contentLength = response.ContentLength;
       if (contentLength != null) res.setHeader("Content-Length", String(contentLength));
       if (range && response.ContentRange && contentLength != null) {
@@ -140,6 +182,12 @@ export async function registerRoutes(
         res.setHeader("Content-Range", response.ContentRange);
       }
       body.pipe(res);
+      res.on("finish", () => {
+        const ms = Date.now() - startedAt;
+        if (ms >= MEDIA_SLOW_MS) {
+          console.warn("[Media] Slow proxy response:", { key, ms, range: !!range });
+        }
+      });
     } catch (err) {
       console.error("[Media] Error streaming from S3:", err);
       if (!res.headersSent) res.status(500).json({ message: "Error loading media" });
@@ -1280,6 +1328,11 @@ export async function registerRoutes(
             ext = ".mp4";
             contentType = "video/mp4";
           }
+        } else if (buffer && file.mimetype.startsWith("image/")) {
+          const opt = await optimizeImageBufferForUpload(buffer, contentType, file.originalname);
+          buffer = opt.buffer;
+          ext = opt.ext || ext;
+          contentType = opt.contentType;
         }
         if (isS3Configured()) {
           const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
@@ -1415,6 +1468,11 @@ export async function registerRoutes(
                 ext = ".mp4";
                 contentType = "video/mp4";
               }
+            } else if (buffer && file.mimetype.startsWith("image/")) {
+              const opt = await optimizeImageBufferForUpload(buffer, contentType, file.originalname);
+              buffer = opt.buffer;
+              ext = opt.ext || ext;
+              contentType = opt.contentType;
             }
             if (isS3Configured()) {
               const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
@@ -1468,6 +1526,11 @@ export async function registerRoutes(
               ext = ".mp4";
               contentType = "video/mp4";
             }
+          } else if (buffer && closeFile.mimetype.startsWith("image/")) {
+            const opt = await optimizeImageBufferForUpload(buffer, contentType, closeFile.originalname);
+            buffer = opt.buffer;
+            ext = opt.ext || ext;
+            contentType = opt.contentType;
           }
           if (isS3Configured()) {
             const key = `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;

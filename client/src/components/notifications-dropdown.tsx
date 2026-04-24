@@ -303,8 +303,12 @@ export function NotificationsDropdown() {
                                         <img
                                           src={absUrl}
                                           alt={`Adjunto ${idx + 1}`}
-                                          loading="eager"
+                                          width={80}
+                                          height={80}
+                                          loading={idx === 0 ? "eager" : "lazy"}
+                                          decoding="async"
                                           referrerPolicy="no-referrer"
+                                          fetchPriority={idx === 0 ? "high" : "low"}
                                           className="w-full h-full object-cover"
                                         />
                                       </button>
@@ -426,6 +430,7 @@ export function NotificationsDropdown() {
                 loading="eager"
                 decoding="async"
                 referrerPolicy="no-referrer"
+                fetchPriority="high"
                 className="max-w-full max-h-[70vh] object-contain rounded-md"
               />
             );

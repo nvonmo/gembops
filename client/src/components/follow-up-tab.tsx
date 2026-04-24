@@ -373,9 +373,12 @@ export default function FollowUpTab() {
                                         <img
                                           src={absUrl}
                                           alt="Hallazgo"
+                                          width={56}
+                                          height={56}
                                           loading="lazy"
                                           decoding="async"
                                           referrerPolicy="no-referrer"
+                                          fetchPriority={idx === 0 ? "high" : "low"}
                                           className="w-full h-full object-cover pointer-events-none"
                                         />
                                       )}
@@ -442,9 +445,12 @@ export default function FollowUpTab() {
                                   <img
                                     src={absUrl}
                                     alt="Evidencia de cierre"
+                                    width={128}
+                                    height={128}
                                     loading="lazy"
                                     decoding="async"
                                     referrerPolicy="no-referrer"
+                                    fetchPriority="high"
                                     className="w-full h-full object-cover pointer-events-none"
                                   />
                                 </button>
@@ -540,6 +546,7 @@ export default function FollowUpTab() {
                     loading="eager"
                     decoding="async"
                     referrerPolicy="no-referrer"
+                    fetchPriority="high"
                     className="max-w-full max-h-[70vh] object-contain rounded-md"
                   />
                 );
