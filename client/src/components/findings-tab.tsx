@@ -1352,7 +1352,15 @@ function FindingCard({
   const hasCloseEvidenceMedia = closeEvidenceTrimmed.length > 0;
 
   return (
-    <Card className="space-y-3 p-3 sm:p-4" data-testid={`card-finding-${finding.id}`}>
+    <Card
+      className={cn(
+        "space-y-3 border-2 p-3 sm:p-4 shadow-sm transition-colors",
+        finding.status === "closed"
+          ? "border-emerald-200/90 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/35"
+          : "border-sky-200/80 bg-sky-50/50 dark:border-sky-900/45 dark:bg-sky-950/25"
+      )}
+      data-testid={`card-finding-${finding.id}`}
+    >
       <div className="flex gap-3 sm:gap-4">
         <div className="w-[min(36vw,140px)] shrink-0 sm:w-40">
           {mediaUrls.length > 0 ? (
@@ -1552,51 +1560,55 @@ function FindingCard({
       )}
 
       {hasCloseEvidenceMedia && (
-        <div className="rounded-lg border border-border bg-muted/30 p-2">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">Evidencia de cierre</p>
-          {(() => {
-            const closeEvidenceAbs = toAbsolute(closeEvidenceTrimmed);
-            const isVideo =
-              closeEvidenceTrimmed.match(/\.(mp4|webm|ogg|mov|avi)$/i) || closeEvidenceTrimmed.includes("video");
-            const isExternal =
-              (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) &&
-              !closeEvidenceAbs.startsWith(window.location.origin);
-            const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
-            return isVideo ? (
-              <button
-                type="button"
-                onClick={() => handleImageClick(closeEvidenceAbs)}
-                className="relative block aspect-video w-full max-w-md overflow-hidden rounded-md border border-border touch-manipulation"
-                title="Ver video de cierre"
-                data-testid={`video-close-evidence-${finding.id}`}
-              >
-                <video
-                  src={videoSrc}
-                  referrerPolicy="no-referrer"
-                  className="h-full w-full object-cover pointer-events-none"
-                  muted
-                  playsInline
-                />
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => handleImageClick(closeEvidenceAbs)}
-                className="relative block aspect-video w-full max-w-md overflow-hidden rounded-md border border-border touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                title="Ver imagen de cierre"
-                data-testid={`img-close-evidence-${finding.id}`}
-              >
-                <img
-                  src={listImageThumbnailSrc(closeEvidenceAbs, LIST_IMAGE_CARD_FEED_MAX_PX)}
-                  alt="Evidencia de cierre"
-                  loading="lazy"
-                  decoding="async"
-                  referrerPolicy="no-referrer"
-                  className="h-full w-full object-cover"
-                />
-              </button>
-            );
-          })()}
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Evidencia de cierre</p>
+          <div className="w-[min(36vw,140px)] shrink-0 sm:w-40">
+            <div className="overflow-hidden rounded-xl border border-border bg-muted shadow-sm">
+              {(() => {
+                const closeEvidenceAbs = toAbsolute(closeEvidenceTrimmed);
+                const isVideo =
+                  closeEvidenceTrimmed.match(/\.(mp4|webm|ogg|mov|avi)$/i) || closeEvidenceTrimmed.includes("video");
+                const isExternal =
+                  (closeEvidenceAbs.startsWith("http://") || closeEvidenceAbs.startsWith("https://")) &&
+                  !closeEvidenceAbs.startsWith(window.location.origin);
+                const videoSrc = isVideo && isExternal ? `/api/media?url=${encodeURIComponent(closeEvidenceAbs)}` : closeEvidenceAbs;
+                return isVideo ? (
+                  <button
+                    type="button"
+                    onClick={() => handleImageClick(closeEvidenceAbs)}
+                    className="relative block aspect-[3/4] w-full touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    title="Ver video de cierre"
+                    data-testid={`video-close-evidence-${finding.id}`}
+                  >
+                    <video
+                      src={videoSrc}
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                      muted
+                      playsInline
+                    />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleImageClick(closeEvidenceAbs)}
+                    className="relative block aspect-[3/4] w-full touch-manipulation overflow-hidden bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    title="Ver imagen de cierre"
+                    data-testid={`img-close-evidence-${finding.id}`}
+                  >
+                    <img
+                      src={listImageThumbnailSrc(closeEvidenceAbs, LIST_IMAGE_CARD_FEED_MAX_PX)}
+                      alt="Evidencia de cierre"
+                      loading="lazy"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                    />
+                  </button>
+                );
+              })()}
+            </div>
+          </div>
         </div>
       )}
       {finding.status !== "closed" && (
