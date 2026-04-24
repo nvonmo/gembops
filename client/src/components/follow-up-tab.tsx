@@ -16,6 +16,7 @@ import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw, HelpCircle } from "lucide-react";
 import { isOverdueByDate } from "@/lib/utils";
+import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface User {
@@ -371,7 +372,7 @@ export default function FollowUpTab() {
                                         />
                                       ) : (
                                         <img
-                                          src={absUrl}
+                                          src={listImageThumbnailSrc(absUrl)}
                                           alt="Hallazgo"
                                           width={56}
                                           height={56}
@@ -443,7 +444,7 @@ export default function FollowUpTab() {
                                   title="Ver evidencia"
                                 >
                                   <img
-                                    src={absUrl}
+                                    src={listImageThumbnailSrc(absUrl)}
                                     alt="Evidencia de cierre"
                                     width={128}
                                     height={128}

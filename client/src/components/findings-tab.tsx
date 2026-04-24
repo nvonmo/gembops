@@ -22,6 +22,7 @@ import { Pagination, PaginationContent, PaginationItem, PaginationLink, Paginati
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { isOverdueByDate } from "@/lib/utils";
+import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
 
 // Categories are now loaded dynamically from the API
 
@@ -1452,7 +1453,7 @@ function FindingCard({
               ) : (
                 <div key={idx} className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted">
                   <img
-                    src={absUrl}
+                    src={listImageThumbnailSrc(absUrl)}
                     alt={`Hallazgo ${idx + 1}`}
                     width={56}
                     height={56}
@@ -1552,7 +1553,7 @@ function FindingCard({
                 ) : (
                   <div className="w-full max-w-xs rounded-md border overflow-hidden bg-muted">
                     <img
-                      src={closeEvidenceAbs}
+                      src={listImageThumbnailSrc(closeEvidenceAbs)}
                       alt="Evidencia de cierre"
                       loading="lazy"
                       decoding="async"

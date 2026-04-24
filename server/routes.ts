@@ -16,6 +16,14 @@ import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { isS3Configured, getPublicUrlForKey, resolvePhotoUrl, uploadToS3, extractS3KeyFromUrl, isS3TimeoutLikeError, s3Client, S3_BUCKET } from "./s3.js";
 import { convertMovToMp4, isMovFile } from "./video-convert.js";
 import { optimizeImageBufferForUpload } from "./image-optimize.js";
+import {
+  buildListPreviewJpeg,
+  isListPreviewable,
+  makePreviewEtag,
+  MAX_INPUT_BYTES,
+  skipListPreview,
+} from "./image-list-preview.js";
+import { buffer as streamToBuffer } from "node:stream/consumers";
 
 const MEXICO_TZ = "America/Mexico_City";
 
@@ -191,6 +199,172 @@ export async function registerRoutes(
     } catch (err) {
       console.error("[Media] Error streaming from S3:", err);
       if (!res.headersSent) res.status(500).json({ message: "Error loading media" });
+    }
+  });
+
+  /** Thumbnail-sized JPEGs for list views — avoids downloading full-resolution S3 files for 48–80px UI. */
+  const PREVIEW_LRU_MAX = Math.max(20, Math.min(500, parseInt(process.env.IMAGE_LIST_PREVIEW_LRU || "100", 10) || 100));
+  const previewJpegLru = new Map<string, Buffer>();
+  function previewLruTouch(cacheKey: string, buf: Buffer) {
+    previewJpegLru.delete(cacheKey);
+    previewJpegLru.set(cacheKey, buf);
+    while (previewJpegLru.size > PREVIEW_LRU_MAX) {
+      const first = previewJpegLru.keys().next().value as string;
+      previewJpegLru.delete(first);
+    }
+  }
+
+  app.get("/api/image-preview", isAuthenticated, async (req: any, res) => {
+    const startedAt = Date.now();
+    const redirectOriginal = (location: string) => res.redirect(302, location);
+    try {
+      const rawUrl = req.query.url;
+      if (!rawUrl || typeof rawUrl !== "string") {
+        return res.status(400).json({ message: "Missing url" });
+      }
+      let decoded: string;
+      try {
+        decoded = decodeURIComponent(rawUrl);
+      } catch {
+        return res.status(400).json({ message: "Invalid url" });
+      }
+      if (!/^https?:\/\//.test(decoded) && !decoded.startsWith("/")) {
+        return res.status(400).json({ message: "Invalid media URL" });
+      }
+      const key = extractS3KeyFromUrl(decoded);
+      if (!key || !key.startsWith("uploads/")) {
+        return res.status(400).json({ message: "Invalid media URL" });
+      }
+      if (/(\.(?:mp4|webm|og[gv]|mov|avi|mkv))(?:\?|#|$)/i.test(key)) {
+        return redirectOriginal(decoded);
+      }
+      if (/(\.(?:gif|svg))(?:\?|#|$)/i.test(key)) {
+        return redirectOriginal(decoded);
+      }
+
+      const mimetypeForKey = (k: string): string => {
+        if (/\.jpe?g$/i.test(k)) return "image/jpeg";
+        if (/\.png$/i.test(k)) return "image/png";
+        if (/\.webp$/i.test(k)) return "image/webp";
+        if (/\.gif$/i.test(k)) return "image/gif";
+        return "application/octet-stream";
+      };
+
+      const sendPreview = (jpeg: Buffer, etag: string) => {
+        if (res.headersSent) return;
+        const inm = req.headers["if-none-match"] as string | undefined;
+        if (inm) {
+          const a = normalizeEtagHeader(inm);
+          const b = normalizeEtagHeader(etag);
+          if (a && b && a === b) {
+            res.status(304);
+            res.setHeader("ETag", etag);
+            res.setHeader("Cache-Control", "private, max-age=604800");
+            return res.end();
+          }
+        }
+        res.setHeader("Content-Type", "image/jpeg");
+        res.setHeader("Content-Length", String(jpeg.length));
+        res.setHeader("ETag", etag);
+        res.setHeader("Cache-Control", "private, max-age=604800");
+        return res.status(200).end(jpeg);
+      };
+
+      if (!isS3Configured() || !S3_BUCKET) {
+        const rel = key.replace(/^uploads\//, "");
+        const filePath = path.join(uploadDir, rel);
+        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
+          return res.status(404).json({ message: "Not found" });
+        }
+        const stat = fs.statSync(filePath);
+        const mimetype = mimetypeForKey(key);
+        if (skipListPreview(mimetype, key) || !isListPreviewable(mimetype, key)) {
+          return redirectOriginal(decoded);
+        }
+        if (stat.size > MAX_INPUT_BYTES) {
+          return redirectOriginal(decoded);
+        }
+        const etag = makePreviewEtag(`local-${stat.mtimeMs}`, key);
+        const cacheKey = `local:${filePath}:${stat.mtimeMs}`;
+        const hit = previewJpegLru.get(cacheKey);
+        if (hit) {
+          previewLruTouch(cacheKey, hit);
+          return sendPreview(hit, etag);
+        }
+        const buf = await fs.promises.readFile(filePath);
+        let jpeg: Buffer;
+        try {
+          jpeg = await buildListPreviewJpeg(buf, mimetype, key);
+        } catch (e) {
+          console.warn("[image-preview] fallback to original (local)", key, (e as Error)?.message);
+          return redirectOriginal(decoded);
+        }
+        previewLruTouch(cacheKey, jpeg);
+        return sendPreview(jpeg, etag);
+      }
+
+      const head = await s3Client.send(
+        new HeadObjectCommand({ Bucket: S3_BUCKET, Key: key })
+      );
+      const len = head.ContentLength ?? 0;
+      const mime = (head.ContentType || mimetypeForKey(key)).split(";")[0].trim();
+      if (len > MAX_INPUT_BYTES) {
+        return redirectOriginal(decoded);
+      }
+      if (skipListPreview(mime, key) || !isListPreviewable(mime, key)) {
+        return redirectOriginal(decoded);
+      }
+      const s3Etag = head.ETag || String(len);
+      const etag = makePreviewEtag(s3Etag, key);
+      const inm0 = req.headers["if-none-match"] as string | undefined;
+      if (inm0) {
+        const a = normalizeEtagHeader(inm0);
+        const b = normalizeEtagHeader(etag);
+        if (a && b && a === b) {
+          if (!res.headersSent) {
+            res.status(304);
+            res.setHeader("ETag", etag);
+            res.setHeader("Cache-Control", "private, max-age=604800");
+            return res.end();
+          }
+          return;
+        }
+      }
+      const cacheKey = `s3:${S3_BUCKET}:${key}:${s3Etag}`;
+      const cached = previewJpegLru.get(cacheKey);
+      if (cached) {
+        previewLruTouch(cacheKey, cached);
+        return sendPreview(cached, etag);
+      }
+
+      const g = await s3Client.send(
+        new GetObjectCommand({ Bucket: S3_BUCKET, Key: key })
+      );
+      if (!g.Body) {
+        return res.status(404).json({ message: "Not found" });
+      }
+      const full = await streamToBuffer(g.Body as any);
+      let jpeg: Buffer;
+      try {
+        jpeg = await buildListPreviewJpeg(full, mime, key);
+      } catch (e) {
+        console.warn("[image-preview] fallback to original", key, (e as Error)?.message);
+        return redirectOriginal(decoded);
+      }
+      previewLruTouch(cacheKey, jpeg);
+      const ms = Date.now() - startedAt;
+      if (ms >= 800) {
+        console.warn("[image-preview] slow", { key, ms, bytes: jpeg.length });
+      }
+      return sendPreview(jpeg, etag);
+    } catch (err) {
+      console.error("[image-preview] error", err);
+      if (!res.headersSent) {
+        if ((err as any)?.$metadata?.httpStatusCode === 404) {
+          return res.status(404).json({ message: "Not found" });
+        }
+        return res.status(500).json({ message: "Error building preview" });
+      }
     }
   });
 

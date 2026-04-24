@@ -15,6 +15,7 @@ import { isUnauthorizedError } from "@/lib/auth-utils";
 import { Bell, Check, CheckCheck, CalendarDays, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -301,7 +302,7 @@ export function NotificationsDropdown() {
                                         aria-label={`Ver imagen ${idx + 1}`}
                                       >
                                         <img
-                                          src={absUrl}
+                                          src={listImageThumbnailSrc(absUrl)}
                                           alt={`Adjunto ${idx + 1}`}
                                           width={80}
                                           height={80}
