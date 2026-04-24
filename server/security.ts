@@ -76,6 +76,7 @@ export function setupSecurity(app: Express) {
     standardHeaders: true,
     legacyHeaders: false,
     message: { message: "Demasiados intentos de inicio de sesión. Espera 15 minutos." },
+    skip: (req) => req.method === "GET",
   });
   app.use("/api/auth/login", authLimiter);
 }

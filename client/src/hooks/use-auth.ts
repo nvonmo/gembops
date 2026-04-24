@@ -29,10 +29,10 @@ async function fetchUser(): Promise<AuthUser | null> {
 
 export function useAuth() {
   const queryClient = useQueryClient();
-  const { data: user, isLoading } = useQuery<AuthUser | null>({
+  const { data: user, isPending, isError, refetch } = useQuery<AuthUser | null>({
     queryKey: ["/api/auth/user"],
     queryFn: fetchUser,
-    retry: false,
+    retry: 1,
     staleTime: 1000 * 60 * 5,
   });
 
@@ -47,7 +47,10 @@ export function useAuth() {
 
   return {
     user,
-    isLoading,
+    isLoading: isPending,
+    isPending,
+    isError,
+    refetch,
     isAuthenticated: !!user,
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,

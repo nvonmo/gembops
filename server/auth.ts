@@ -98,6 +98,11 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Session-expiry handlers redirect browsers here with GET; send users back to the SPA shell.
+  app.get("/api/auth/login", (_req, res) => {
+    res.redirect(302, "/");
+  });
+
   app.post("/api/auth/login", async (req, res) => {
     try {
       const parsed = loginSchema.safeParse(req.body);
