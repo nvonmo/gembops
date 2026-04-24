@@ -21,8 +21,15 @@ import { Separator } from "@/components/ui/separator";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
-import { isOverdueByDate } from "@/lib/utils";
+import { cn, isOverdueByDate } from "@/lib/utils";
 import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
+import {
+  FINDING_LIST_THUMB_IMG_SIZE,
+  findingCardGhostButtonClass,
+  findingListThumbButtonClass,
+  findingListThumbClickableClass,
+  findingListThumbMoreClass,
+} from "@/lib/finding-list-ui";
 
 // Categories are now loaded dynamically from the API
 
@@ -1348,7 +1355,7 @@ function FindingCard({
 
   return (
     <Card className="p-3 sm:p-4 space-y-3" data-testid={`card-finding-${finding.id}`}>
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="space-y-2 flex-1 min-w-0">
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -1356,7 +1363,7 @@ function FindingCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 text-xs gap-1 px-2"
+                  className={cn(findingCardGhostButtonClass, "gap-1 px-2")}
                   onClick={() => {
                     setEditDescription(finding.description);
                     setEditArea((finding as any).area || "");
@@ -1374,7 +1381,7 @@ function FindingCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 text-xs gap-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  className={cn(findingCardGhostButtonClass, "gap-1 px-2 text-destructive hover:text-destructive hover:bg-destructive/10")}
                   onClick={() => setDeleteOpen(true)}
                   disabled={deleteMutation.isPending}
                   title="Eliminar hallazgo"
@@ -1407,7 +1414,7 @@ function FindingCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 text-xs gap-1 px-2 text-amber-700 dark:text-amber-400 self-start sm:self-auto"
+                className={cn(findingCardGhostButtonClass, "gap-1 px-2 text-amber-700 dark:text-amber-400 self-start sm:self-auto")}
                 onClick={() => {
                   const next = !(finding as any).riskIfRepeats;
                   const message = next
@@ -1424,12 +1431,12 @@ function FindingCard({
               </Button>
             )}
           </div>
-          <p className="text-sm leading-relaxed" data-testid={`text-finding-desc-${finding.id}`}>
+          <p className="text-sm leading-relaxed text-foreground" data-testid={`text-finding-desc-${finding.id}`}>
             {finding.description}
           </p>
         </div>
         {mediaUrls.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap mt-1 sm:mt-0 sm:ml-2 shrink-0 sm:self-start">
+          <div className="flex items-center gap-2 flex-wrap mt-1 sm:mt-0 sm:ml-2 shrink-0 sm:self-start">
             {mediaUrls.slice(0, 4).map((url, idx) => {
               const absUrl = toAbsolute(url.trim());
               const isVideo = url.match(/\.(mp4|webm|ogg|mov|avi)$/i) || url.includes("video");
@@ -1440,7 +1447,7 @@ function FindingCard({
                   key={idx}
                   type="button"
                   onClick={() => handleImageClick(absUrl)}
-                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity p-0 flex shrink-0"
+                  className={findingListThumbButtonClass}
                   data-testid={`video-finding-${finding.id}-${idx}`}
                 >
                   <video
@@ -1451,12 +1458,12 @@ function FindingCard({
                   />
                 </button>
               ) : (
-                <div key={idx} className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted">
+                <div key={idx} className={findingListThumbClickableClass}>
                   <img
                     src={listImageThumbnailSrc(absUrl)}
                     alt={`Hallazgo ${idx + 1}`}
-                    width={56}
-                    height={56}
+                    width={FINDING_LIST_THUMB_IMG_SIZE}
+                    height={FINDING_LIST_THUMB_IMG_SIZE}
                     loading="lazy"
                     decoding="async"
                     referrerPolicy="no-referrer"
@@ -1472,7 +1479,7 @@ function FindingCard({
               <button
                 type="button"
                 onClick={() => handleImageClick(toAbsolute(mediaUrls[4].trim()))}
-                className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground hover:bg-muted/80"
+                className={findingListThumbMoreClass}
               >
                 +{mediaUrls.length - 4}
               </button>

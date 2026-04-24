@@ -15,8 +15,13 @@ import type { Finding, GembaWalk } from "@shared/schema";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, CalendarDays, Download, FileSpreadsheet, AlertCircle, Clock, CheckCircle2, X, RefreshCw, HelpCircle } from "lucide-react";
-import { daysSinceFindingCreated, isOverdueByDate } from "@/lib/utils";
+import { cn, daysSinceFindingCreated, isOverdueByDate } from "@/lib/utils";
 import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
+import {
+  FINDING_LIST_THUMB_IMG_SIZE,
+  findingListPrimaryActionButtonClass,
+  findingListThumbButtonClass,
+} from "@/lib/finding-list-ui";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface User {
@@ -336,12 +341,12 @@ export default function FollowUpTab() {
                   return (
                     <div
                       key={f.id}
-                      className="flex items-start sm:items-center justify-between gap-2 py-2.5 border-b last:border-0"
+                      className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3 py-2.5 border-b last:border-0"
                       data-testid={`followup-item-${f.id}`}
                     >
-                      <div className="flex-1 min-w-0 space-y-1">
-                        <div className="flex items-start gap-2">
-                          <p className="text-sm leading-relaxed flex-1">{f.description}</p>
+                      <div className="flex-1 min-w-0 space-y-1.5 w-full sm:w-auto">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
+                          <p className="text-sm leading-relaxed text-foreground min-w-0 sm:flex-1">{f.description}</p>
                           {(() => {
                             const mediaUrls: string[] = (f as FindingWithUser & { photoUrls?: string[] }).photoUrls?.length
                               ? (f as FindingWithUser & { photoUrls?: string[] }).photoUrls!
@@ -351,7 +356,7 @@ export default function FollowUpTab() {
                             const toAbs = (u: string) => (u.startsWith("http://") || u.startsWith("https://") ? u : `${window.location.origin}${u.startsWith("/") ? u : `/${u}`}`);
                             if (mediaUrls.length === 0) return null;
                             return (
-                              <div className="flex gap-1.5 flex-wrap shrink-0">
+                              <div className="flex gap-2 flex-wrap shrink-0 sm:justify-end">
                                 {mediaUrls.map((url, idx) => {
                                   const u = url?.trim();
                                   if (!u) return null;
@@ -368,7 +373,7 @@ export default function FollowUpTab() {
                                         e.stopPropagation();
                                         handleImageClick(u);
                                       }}
-                                      className="w-12 h-12 sm:w-14 sm:h-14 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 focus:outline-none focus:ring-2 focus:ring-ring"
+                                      className={findingListThumbButtonClass}
                                       title="Ver imagen"
                                     >
                                       {isVideo ? (
@@ -383,8 +388,8 @@ export default function FollowUpTab() {
                                         <img
                                           src={listImageThumbnailSrc(absUrl)}
                                           alt="Hallazgo"
-                                          width={56}
-                                          height={56}
+                                          width={FINDING_LIST_THUMB_IMG_SIZE}
+                                          height={FINDING_LIST_THUMB_IMG_SIZE}
                                           loading="lazy"
                                           decoding="async"
                                           referrerPolicy="no-referrer"
@@ -451,7 +456,7 @@ export default function FollowUpTab() {
                                 <button
                                   type="button"
                                   onClick={() => handleImageClick(f.closeEvidenceUrl!)}
-                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block"
+                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border border-border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block touch-manipulation"
                                 >
                                   <video
                                     src={videoSrc}
@@ -469,7 +474,7 @@ export default function FollowUpTab() {
                                     e.stopPropagation();
                                     handleImageClick(f.closeEvidenceUrl!);
                                   }}
-                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block focus:outline-none focus:ring-2 focus:ring-ring"
+                                  className="w-24 h-24 sm:w-32 sm:h-32 rounded-md border border-border overflow-hidden bg-muted shrink-0 cursor-pointer hover:opacity-80 transition-opacity p-0 block touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                                   title="Ver evidencia"
                                 >
                                   <img
@@ -489,7 +494,7 @@ export default function FollowUpTab() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 self-stretch sm:self-center sm:justify-start">
                         {isOverdue ? (
                           <Badge variant="destructive" className="text-xs">Vencido</Badge>
                         ) : !f.dueDate ? (
@@ -504,7 +509,7 @@ export default function FollowUpTab() {
                             size="sm"
                             variant="default"
                             onClick={() => handleCloseFinding(f)}
-                            className="gap-1.5 h-7 text-xs min-h-[28px] px-2 sm:px-3"
+                            className={cn(findingListPrimaryActionButtonClass)}
                           >
                             <CheckCircle2 className="h-3 w-3" />
                             <span className="hidden sm:inline">Cerrar</span>

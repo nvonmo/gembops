@@ -16,6 +16,7 @@ import { Bell, Check, CheckCheck, CalendarDays, Download } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { listImageThumbnailSrc } from "@/lib/list-image-thumbnail";
+import { FINDING_LIST_THUMB_IMG_SIZE, findingListThumbButtonClass } from "@/lib/finding-list-ui";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -274,14 +275,13 @@ export function NotificationsDropdown() {
                                       setVideoLoadError(false);
                                       setMediaModalOpen(true);
                                     };
-                                    const btnClass = "w-20 h-20 min-w-[48px] min-h-[48px] rounded-md border overflow-hidden bg-muted cursor-pointer hover:opacity-80 active:opacity-90 transition-opacity p-0 shrink-0";
                                     return isVideo ? (
                                       <button
                                         key={idx}
                                         type="button"
                                         onClick={openMedia}
                                         onPointerUp={openMedia}
-                                        className={btnClass}
+                                        className={findingListThumbButtonClass}
                                         aria-label="Ver video"
                                       >
                                         <video
@@ -298,14 +298,14 @@ export function NotificationsDropdown() {
                                         type="button"
                                         onClick={openMedia}
                                         onPointerUp={openMedia}
-                                        className={btnClass}
+                                        className={findingListThumbButtonClass}
                                         aria-label={`Ver imagen ${idx + 1}`}
                                       >
                                         <img
                                           src={listImageThumbnailSrc(absUrl)}
                                           alt={`Adjunto ${idx + 1}`}
-                                          width={80}
-                                          height={80}
+                                          width={FINDING_LIST_THUMB_IMG_SIZE}
+                                          height={FINDING_LIST_THUMB_IMG_SIZE}
                                           loading={idx === 0 ? "eager" : "lazy"}
                                           decoding="async"
                                           referrerPolicy="no-referrer"
